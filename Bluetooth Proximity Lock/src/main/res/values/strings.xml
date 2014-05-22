@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Bluetooth Proximity Lock</string>
+    <string name="title_section1">Bluetooth</string>
+    <string name="title_section2">Wi-Fi</string>
+    <string name="title_section3">Settings</string>
+
+    <string name="signal_strength">Bluetooth Signal Strength:\u0020</string>
+	<string name="loading">Loading&#8230;</string>
+	<string name="bt_device_name">Bluetooth Device Name:\u0020</string>
+	<string name="service_is">Service is currently:\u0020</string>
+	<string name="running">Running</string>
+	<string name="stopped">Stopped</string>
+	<string name="button_start_service">Start Service</string>
+	<string name="button_stop_service">Stop Service</string>
+
+</resources>
