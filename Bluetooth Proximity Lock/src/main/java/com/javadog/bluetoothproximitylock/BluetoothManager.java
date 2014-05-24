@@ -4,12 +4,11 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
+import android.content.res.Resources;
 import android.util.Log;
 
-import java.util.Iterator;
+import java.util.Set;
 
 /**
  * A class used to read the signal strength of a connected BT device
@@ -18,32 +17,55 @@ import java.util.Iterator;
 public class BluetoothManager extends BluetoothGattCallback {
 	private int signalStrength;
 	private boolean rssiRequested;
-	private BluetoothGatt btGatt;
+	private static BluetoothGatt btGatt;
 
+	private static BluetoothDevice selectedDevice;
+
+	//Keep track of all BT devices locally
+	private static Set<BluetoothDevice> allBtDevices;
+
+	/**
+	 * @param context Application context.
+	 */
 	public BluetoothManager(Context context) {
+		//Refresh all bluetooth devices
+		refreshBtDevices();
+
 		rssiRequested = false;
-		BluetoothDevice device = getPairedDevice(context);
+
+		BluetoothDevice device = getPairedDevice();
 		btGatt = device.connectGatt(context, false, this);
 	}
 
-	public int getSignalStrength() {
-		return signalStrength;
+	/**
+	 * This method simply returns the first bluetooth device the system returns, unless "selectedDevice" is set.
+	 * If it is not set, it will set it to the system-selected device.
+	 * To request a particular device by BT address, use:
+	 * {@link com.javadog.bluetoothproximitylock.BluetoothManager#getPairedDevice(String)}.
+	 *
+	 * @return The first bluetooth device the system feels like returning.
+	 */
+	protected BluetoothDevice getPairedDevice() {
+		return
+				selectedDevice == null ?
+						selectedDevice = BluetoothAdapter.getDefaultAdapter().getBondedDevices().iterator().next() :
+						selectedDevice;
 	}
 
-	public BluetoothGatt getBtGatt() {
-		return btGatt;
-	}
+	/**
+	 * Returns the specific, bonded BT device identified by the provided deviceAddress.
+	 *
+	 * @param deviceAddress Which device I should return.
+	 * @return The requested device.
+	 */
+	protected static BluetoothDevice getPairedDevice(String deviceAddress) throws Resources.NotFoundException {
+		for(BluetoothDevice device : allBtDevices) {
+			if(device.getAddress().equalsIgnoreCase(deviceAddress)) {
+				return device;
+			}
+		}
 
-	public boolean canReadRssi() {
-		return !rssiRequested;
-	}
-
-	protected static BluetoothDevice getPairedDevice(Context context) {   //TODO: allow user to choose device
-		//Get a Set of paired Bluetooth devices from the system Bluetooth service
-		Iterator<BluetoothDevice> bondedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices().iterator();
-
-		bondedDevices.next();
-		return bondedDevices.next();
+		throw new Resources.NotFoundException();
 	}
 
 	@Override
@@ -58,5 +80,44 @@ public class BluetoothManager extends BluetoothGattCallback {
 		}
 
 		rssiRequested = false;
+	}
+
+	/**
+	 * If new services have been discovered, we should update the BT devices list
+	 */
+	@Override
+	public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+		super.onServicesDiscovered(gatt, status);
+
+		Log.v(MainActivity.DEBUG_TAG, "BTManager discovered new services; refreshing BT device list.");
+		refreshBtDevices();
+	}
+
+	public static void refreshBtDevices() {
+		allBtDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
+	}
+
+	public static BluetoothDevice getSelectedDevice() {
+		return selectedDevice;
+	}
+
+	public static void setSelectedDevice(BluetoothDevice selectedDevice) {
+		BluetoothManager.selectedDevice = selectedDevice;
+	}
+
+	public int getSignalStrength() {
+		return signalStrength;
+	}
+
+	public static Set<BluetoothDevice> getAllBtDevices() {
+		return allBtDevices;
+	}
+
+	public BluetoothGatt getBtGatt() {
+		return btGatt;
+	}
+
+	public synchronized boolean canReadRssi() {
+		return !rssiRequested;
 	}
 }

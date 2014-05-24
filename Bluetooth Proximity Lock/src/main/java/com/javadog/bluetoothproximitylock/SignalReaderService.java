@@ -1,6 +1,7 @@
 package com.javadog.bluetoothproximitylock;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.IBinder;
@@ -12,27 +13,29 @@ import android.util.Log;
  */
 public class SignalReaderService extends Service {
 	final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
-	private final static long REFRESH_INTERVAL_MS = 2000;    //TODO: Allow user to specify
+	final static String BT_ENABLE_BUTTON_ACTION = "com.javadog.bluetoothproximitylock.BT_ENABLE_BUTTON";
 
+	private static long refreshIntervalMs;
 	private static boolean iAmRunning;
 
 	private SignalStrengthLoader loader;
 
 	@Override
-	public void onCreate() {
-		loader = new SignalStrengthLoader();
-	}
-
-	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
+
+		//Refresh interval should have been passed in the intent
+		refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2000);
 
 		loader = new SignalStrengthLoader();
 		loader.execute();
 
+		iAmRunning = true;
+
 		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service started.");
 
-		iAmRunning = true;
+		//Service has started now, so we can enable the fragment button.
+		enableFragmentButton();
 
 		//Keep the service in a "started" state even if killed for memory
 		return START_STICKY;
@@ -42,14 +45,24 @@ public class SignalReaderService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 
+		//Kill the AsyncTask
 		if(loader != null) {
 			loader.plzStop();
-			loader.cancel(true);
 		}
+
+		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service stopped.");
 
 		iAmRunning = false;
 
-		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service stopped.");
+		//The service has finished, so let's enable the BTFragment's button again
+		enableFragmentButton();
+	}
+
+	/**
+	 * Notifies the fragment that it can enable its button again.
+	 */
+	private void enableFragmentButton() {
+		sendLocalBroadcast(getApplicationContext(), BT_ENABLE_BUTTON_ACTION, null);
 	}
 
 	@Override
@@ -62,26 +75,62 @@ public class SignalReaderService extends Service {
 	}
 
 	/**
-	 * Implementation of AsyncTask which periodically refreshes signal strength.
+	 * Sends the specified String using the LocalBroadcastManager interface.
+	 * Retrieve the message using intent.getStringExtra("message").
+	 *
+	 * @param context The application context.
+	 * @param action The action to specify with the Intent.
+	 * @param message The message to send.
 	 */
-	class SignalStrengthLoader extends AsyncTask<Void, Integer, Void> { //TODO: Pass in chosen bluetooth device ID instead of picking the first one in BTManager
-		private BluetoothManager manager;
-		private int signalStrength;
-		private boolean plzStop;
-
-		protected void plzStop() {
-			plzStop = true;
+	protected static void sendLocalBroadcast(Context context, String action, String message) {
+		LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(context);
+		Intent i = new Intent(action);
+		if(message != null) {
+			i.putExtra("message", message);
 		}
 
-		@Override
-		protected void onPreExecute() {
+		broadcastManager.sendBroadcast(i);
+
+		Log.d(MainActivity.DEBUG_TAG, "Sent local broadcast with action: " + action);
+	}
+
+	/**
+	 * Sends the specified int using the LocalBroadcastManager interface.
+	 * Retrieve the message using intent.getIntExtra("message").
+	 *
+	 * @param context The application context.
+	 * @param action The action to specify with the Intent.
+	 * @param message The message to send.
+	 */
+	protected static void sendLocalBroadcast(Context context, String action, int message) {
+		LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(context);
+		Intent i = new Intent(action);
+		i.putExtra("message", message);
+		broadcastManager.sendBroadcast(i);
+
+		Log.d(MainActivity.DEBUG_TAG, "Sent local broadcast with action: " + action);
+	}
+
+	/**
+	 * Implementation of AsyncTask which periodically refreshes signal strength.
+	 */
+	class SignalStrengthLoader extends AsyncTask<Void, Integer, Void> {
+		private BluetoothManager manager;
+		private int signalStrength;
+		private boolean plzStop;    //Calling asynctask.cancel(true) prevents onPostExecute from running.
+
+		public SignalStrengthLoader() {
 			manager = new BluetoothManager(getApplicationContext());
 			plzStop = false;
 		}
 
+		void plzStop() {
+			plzStop = true;
+		}
+
 		@Override
-		protected Void doInBackground(Void... voids) {
-			while(manager != null && !plzStop) {
+		protected Void doInBackground(Void... voids) {  //TODO: app crashes if the user hits start/stop a certain number of times (~7)
+			while(!plzStop) {
 				//Read remote RSSI. If we have a request for it out already, don't request again.
 				if(manager.canReadRssi()) {
 					manager.getBtGatt().readRemoteRssi();
@@ -93,34 +142,35 @@ public class SignalReaderService extends Service {
 				//Post the new value as "progress"
 				publishProgress(signalStrength);
 
-				Log.v(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
+				Log.d(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
+				Log.d(MainActivity.DEBUG_TAG, "Using device: " + manager.getPairedDevice().getName());
+				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + manager.getPairedDevice().getAddress());
+				Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
 
 				//Sleep this thread for the provided time
 				try {
-					Thread.sleep(REFRESH_INTERVAL_MS);
+					Thread.sleep(refreshIntervalMs);
 				} catch(InterruptedException e) {
 					Log.w(MainActivity.DEBUG_TAG, "Signal strength thread interrupted. " +
-							"User probably killed the service.");
+							"System probably killed the service.");
 				}
 			}
-
 			return null;
 		}
 
 		/**
-		 * Signal strength represented in dBm (Short).
+		 * Signal strength represented in dBm.
 		 */
 		@Override
 		protected void onProgressUpdate(Integer... values) {
 			int updatedSignalStrength = values[0];
 
-			//Locally broadcast the new signal strength value using an Intent extra
-			LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(getApplicationContext());
-			Intent i = new Intent(BT_SIGNAL_STRENGTH_ACTION);
-			i.putExtra("BTSignalStrength", updatedSignalStrength);
-			broadcastManager.sendBroadcast(i);
+			sendLocalBroadcast(getApplicationContext(), BT_SIGNAL_STRENGTH_ACTION, updatedSignalStrength);
+		}
 
-			Log.d(MainActivity.DEBUG_TAG, "Local BT signal broadcast sent.");
+		@Override
+		protected void onPostExecute(Void aVoid) {
+			cancel(true);
 		}
 	}
 }

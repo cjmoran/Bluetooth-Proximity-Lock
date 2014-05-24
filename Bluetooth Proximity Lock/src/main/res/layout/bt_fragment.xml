@@ -13,54 +13,47 @@
 	<LinearLayout
 		android:orientation="horizontal"
 		android:layout_width="match_parent"
-		android:layout_height="wrap_content">
-		<TextView
-			android:id="@+id/section_label"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="@string/signal_strength"/>
-		<TextView
-			android:id="@+id/bt_signal_strength"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="@string/loading"/>
-	</LinearLayout>
-
-	<LinearLayout
-		android:orientation="horizontal"
-		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="@dimen/button_top_margin">
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="@string/bt_device_name"/>
-		<TextView
-			android:id="@+id/bt_device_name"
-			android:ellipsize="end"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"/>
-	</LinearLayout>
-
-	<LinearLayout
-		android:orientation="horizontal"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="@dimen/button_top_margin">
+		android:gravity="center_vertical">
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:text="@string/service_is"/>
-		<TextView
-			android:id="@+id/bt_service_status"
-			android:layout_width="wrap_content"
+		<Switch
+			android:id="@+id/button_bt_service_start_stop"
+			android:layout_width="match_parent"
 			android:layout_height="wrap_content"/>
 	</LinearLayout>
 
-	<Button
-		android:id="@+id/button_bt_service_start_stop"
+	<LinearLayout
+		android:orientation="horizontal"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="@dimen/button_top_margin"/>
+		android:gravity="center_vertical">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/device"/>
+		<Spinner
+			android:id="@+id/bt_device_chooser"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"/>
+	</LinearLayout>
+
+	<LinearLayout
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center_vertical">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/refresh_interval"/>
+		<Spinner
+			android:id="@+id/bt_refresh_interval"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:entries="@array/refresh_intervals"/>
+	</LinearLayout>
 
 </LinearLayout>

@@ -1,6 +1,5 @@
 package com.javadog.bluetoothproximitylock;
 
-import android.app.ActivityManager;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -14,15 +13,26 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.Set;
 
 /**
  * A page for configuring Bluetooth options.
  */
-public class BluetoothFragment extends Fragment implements View.OnClickListener {
+public class BluetoothFragment extends Fragment implements CompoundButton.OnCheckedChangeListener, AdapterView.OnItemSelectedListener {
 	private SignalStrengthUpdateReceiver ssReceiver;
+	private static Switch serviceToggle;
 	private static TextView signalStrengthView;
+	private static Spinner refreshIntervalSpinner;
+	private static long refreshInterval;
 	private boolean serviceRunning;
 
 	@Override
@@ -34,29 +44,82 @@ public class BluetoothFragment extends Fragment implements View.OnClickListener 
 	public void onResume() {
 		super.onResume();
 
+		populateBtDevices();
+
+		//Get a fresh reference to our views
+		serviceToggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
+		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
+		refreshIntervalSpinner = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
+
 		setupClickListeners();
 
-		//Get a fresh reference to the signal strength view
-		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
+		//Update refresh interval based on the value in the spinner
+		refreshInterval = interpretRefreshSpinner(refreshIntervalSpinner.getSelectedItemPosition());
 
 		//Check if the service is running, update our button depending
 		serviceRunning = SignalReaderService.isServiceRunning();
-		updateBtServiceUI(getView());
+		updateBtServiceUI();
 
-		//Instantiate the ssReceiver if it's not already, then register it
+		//Get a reference to the local broadcast manager, and specify which intent actions we want to listen for
+		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
+		IntentFilter filter = new IntentFilter();
+		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
+		filter.addAction(SignalReaderService.BT_ENABLE_BUTTON_ACTION);
+
+		//Instantiate the ssReceiver if it's not already, then register it with the LBM
 		if(ssReceiver == null) {
 			ssReceiver = new SignalStrengthUpdateReceiver();
 		}
-
-		//Register this BroadcastReceiver with the system
-		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
-		IntentFilter filter = new IntentFilter(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
 		manager.registerReceiver(ssReceiver, filter);
 	}
 
+	private void populateBtDevices() {
+		//Get a Set of all paired bluetooth devices, convert to array
+		BluetoothManager.refreshBtDevices();
+		Set<BluetoothDevice> devicesSet = BluetoothManager.getAllBtDevices();
+		ArrayList<String> devices = new ArrayList<>();
+		for(BluetoothDevice b : devicesSet) {
+			devices.add(b.getName() + " (" + b.getAddress() + ")");
+		}
+
+		//Set the adapter for the device spinner
+		Spinner deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
+		deviceChooser.setAdapter(new ArrayAdapter<>(
+				getActivity().getApplicationContext(), android.R.layout.simple_spinner_dropdown_item, devices));
+
+		//Set the onItemSelectedListener to this fragment
+		deviceChooser.setOnItemSelectedListener(this);
+	}
+
 	private void setupClickListeners() {
-		Button serviceToggle = (Button) getView().findViewById(R.id.button_bt_service_start_stop);
-		serviceToggle.setOnClickListener(this);
+		//Service toggle switch
+		serviceToggle.setOnCheckedChangeListener(this);
+
+		//Refresh interval spinner
+		Spinner refreshInts = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
+		refreshInts.setOnItemSelectedListener(this);
+	}
+
+	/**
+	 * Disables the button(s) with the specified buttonId(s).
+	 *
+	 * @param buttonIds The buttons to be disabled.
+	 */
+	private void disableButton(int... buttonIds) {
+		for(int id : buttonIds) {
+			getView().findViewById(id).setEnabled(false);
+		}
+	}
+
+	/**
+	 * Enables the button(s) with the specified buttonId(s).
+	 *
+	 * @param buttonIds The buttons to be enabled.
+	 */
+	private void enableButton(int... buttonIds) {
+		for(int id : buttonIds) {
+			getView().findViewById(id).setEnabled(true);
+		}
 	}
 
 	@Override
@@ -68,25 +131,44 @@ public class BluetoothFragment extends Fragment implements View.OnClickListener 
 		manager.unregisterReceiver(ssReceiver);
 	}
 
-	@Override
-	public void onClick(View view) {
-		switch(view.getId()) {
-			case R.id.button_bt_service_start_stop:
-				//Toggle the service
-				toggleBtService();
-				break;
+	private void toggleBtService() {
+		if(serviceRunning) {
+			stopBtService();
+		} else {
+			startBtService();
 		}
 	}
 
-	private void toggleBtService() {
-		if(serviceRunning) {
-			getActivity().stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
-		} else {
-			getActivity().startService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
-		}
+	private void stopBtService() {
+		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
+		disableButton(
+				R.id.button_bt_service_start_stop,
+				R.id.bt_device_chooser,
+				R.id.bt_refresh_interval);
 
-		serviceRunning = !serviceRunning;
-		updateBtServiceUI(getView());
+		getActivity().stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
+
+		serviceRunning = false;
+		updateBtServiceUI();
+	}
+
+	private void startBtService() {
+		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
+		disableButton(
+				R.id.button_bt_service_start_stop,
+				R.id.bt_device_chooser,
+				R.id.bt_refresh_interval);
+
+		Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
+
+		//Be sure to pass the device address and refresh interval with the intent
+		startIntent.putExtra("btDeviceAddress", BluetoothManager.getSelectedDevice().getAddress());
+		startIntent.putExtra("btRefreshInterval", refreshInterval);
+
+		getActivity().startService(startIntent);
+
+		serviceRunning = true;
+		updateBtServiceUI();
 	}
 
 	protected void updateSignalStrength(int newSignalStrength) {
@@ -95,21 +177,73 @@ public class BluetoothFragment extends Fragment implements View.OnClickListener 
 		}
 	}
 
-	private void updateBtServiceUI(View view) {
-		//Update the button
-		Button toggleButton = (Button) view.findViewById(R.id.button_bt_service_start_stop);
-		toggleButton.setText(serviceRunning ? R.string.button_stop_service : R.string.button_start_service);
+	private void updateBtServiceUI() {
+		//Update the switch
+		serviceToggle.setChecked(serviceRunning);
+	}
 
-		//Update device name
-		TextView deviceName = (TextView) view.findViewById(R.id.bt_device_name);
-		BluetoothDevice pairedDevice = BluetoothManager.getPairedDevice(getActivity().getApplicationContext());
-		String name = pairedDevice.getName();
-		deviceName.setText(name == null ? "Error reading name." : name);
+	/**
+	 * Returns the millisecond value corresponding to the value selected in the refresh interval spinner.
+	 *
+	 * @param position The position of the selected item in the spinner.
+	 * @return The millisecond value the passed position represents.
+	 */
+	private long interpretRefreshSpinner(int position) {
+		return new long[]{1000, 2000, 5000}[position];
+	}
 
-		//Update the status text
-		TextView statusText = (TextView) view.findViewById(R.id.bt_service_status);
-		statusText.setText(serviceRunning ? R.string.running : R.string.stopped);
-		statusText.setTextColor(serviceRunning ? Color.GREEN : Color.RED);
+	@Override
+	public void onItemSelected(AdapterView<?> adapterView, View view, int position, long rowId) {
+		boolean wasRunning;
+		switch(adapterView.getId()) {
+			case R.id.bt_device_chooser:
+				//First stop the service if it's running
+				wasRunning = SignalReaderService.isServiceRunning();
+				if(wasRunning) {
+					stopBtService();
+				}
+
+				//Now feed the selected device's address to BluetoothManager
+				Set<BluetoothDevice> devicesSet = BluetoothManager.getAllBtDevices();
+				BluetoothDevice chosenDevice = (BluetoothDevice)devicesSet.toArray()[position];
+				BluetoothManager.setSelectedDevice(chosenDevice);
+
+				//And restart the service if it had been running
+				if(wasRunning) {
+					startBtService();
+				}
+				break;
+
+			case R.id.bt_refresh_interval:
+				//Stop the service if it was running
+				wasRunning = SignalReaderService.isServiceRunning();
+				if(wasRunning) {
+					stopBtService();
+				}
+
+				//Now save the spinner value into our instance variable here, and restart the service
+				refreshInterval = interpretRefreshSpinner(refreshIntervalSpinner.getSelectedItemPosition());
+
+				//And restart the service if it had been running
+				if(wasRunning) {
+					startBtService();
+				}
+				break;
+		}
+	}
+
+	@Override
+	public void onNothingSelected(AdapterView<?> adapterView) {
+		//Nothing
+	}
+
+	@Override
+	public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+		switch(compoundButton.getId()) {
+			case R.id.button_bt_service_start_stop:
+				toggleBtService();
+				break;
+		}
 	}
 
 	/**
@@ -118,12 +252,24 @@ public class BluetoothFragment extends Fragment implements View.OnClickListener 
 	private class SignalStrengthUpdateReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			//If the broadcast was fired with this action, we know to update the UI with a new signal strength
-			if(intent.getAction().equals(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION)) {
+			String action = intent.getAction();
+
+			//If the broadcast was fired with this action, we know to update the UI
+			if(action.equals(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION)) {
 				Log.d(MainActivity.DEBUG_TAG, "Local BT signal broadcast received.");
 
-				int newSignalStrength = intent.getIntExtra("BTSignalStrength", Short.MIN_VALUE);
+				//Update signal strength
+				int newSignalStrength = intent.getIntExtra("message", Integer.MIN_VALUE);
 				updateSignalStrength(newSignalStrength);
+			}
+
+			//When these broadcast are received, we want to enable the Start/Stop switch.
+			else if(action.equals(SignalReaderService.BT_ENABLE_BUTTON_ACTION)) {
+				Log.d(MainActivity.DEBUG_TAG, "Received BT_ENABLE_BUTTON intent.");
+				enableButton(
+						R.id.button_bt_service_start_stop,
+						R.id.bt_device_chooser,
+						R.id.bt_refresh_interval);
 			}
 		}
 	}
