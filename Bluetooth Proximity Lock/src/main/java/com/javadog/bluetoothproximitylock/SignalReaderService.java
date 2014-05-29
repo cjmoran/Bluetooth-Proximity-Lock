@@ -131,12 +131,14 @@ public class SignalReaderService extends Service {
 	 * Implementation of AsyncTask which periodically refreshes signal strength.
 	 */
 	class SignalStrengthLoader extends AsyncTask<Void, Integer, Void> {
-		private BluetoothManager manager;
+		private BluetoothManager bluetoothManager;
+		private DeviceLockManager deviceLockManager;
 		private int signalStrength;
 		private boolean plzStop;    //Calling asynctask.cancel(true) prevents onPostExecute from running.
 
 		public SignalStrengthLoader() {
-			manager = new BluetoothManager(getApplicationContext());
+			bluetoothManager = new BluetoothManager(getApplicationContext());
+			deviceLockManager = new DeviceLockManager(getApplicationContext());
 			plzStop = false;
 		}
 
@@ -145,23 +147,26 @@ public class SignalReaderService extends Service {
 		}
 
 		@Override
-		protected Void doInBackground(Void... voids) {  //TODO: app crashes if the user hits start/stop a certain number of times (~7)
+		protected Void doInBackground(Void... voids) {
 			while(!plzStop) {
 				//Read remote RSSI. If we have a request for it out already, don't request again.
-				if(manager.canReadRssi()) {
-					manager.getBtGatt().readRemoteRssi();
+				if(bluetoothManager.canReadRssi()) {
+					bluetoothManager.getBtGatt().readRemoteRssi();
 				}
 
 				//Get signal strength from the BTManager
-				signalStrength = manager.getSignalStrength();
+				signalStrength = bluetoothManager.getSignalStrength();
 
 				//Post the new value as "progress"
 				publishProgress(signalStrength);
 
 				Log.d(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
-				Log.d(MainActivity.DEBUG_TAG, "Using device: " + manager.getPairedDevice().getName());
-				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + manager.getPairedDevice().getAddress());
+				Log.d(MainActivity.DEBUG_TAG, "Using device: " + bluetoothManager.getPairedDevice().getName());
+				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + bluetoothManager.getPairedDevice().getAddress());
 				Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
+
+				//Decide whether the device should be locked/unlocked
+				deviceLockManager.handleDeviceLock(signalStrength);
 
 				//Sleep this thread for the provided time
 				try {

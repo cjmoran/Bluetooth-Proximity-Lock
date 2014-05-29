@@ -6,6 +6,9 @@
     <string name="title_section2">Wi-Fi</string>
     <string name="title_section3">Settings</string>
 
+	<string name="device_admin_description">Allow Bluetooth Proximity Lock to set passwords and
+		lock/unlock your device.</string>
+
 	<!-- Bluetooth fragment -->
     <string name="signal_strength">Bluetooth Signal Strength:\u0020</string>
 	<string name="device">Device:</string>

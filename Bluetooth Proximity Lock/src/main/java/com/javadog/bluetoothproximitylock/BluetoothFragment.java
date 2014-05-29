@@ -16,13 +16,13 @@
 
 package com.javadog.bluetoothproximitylock;
 
+import android.app.Fragment;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -41,12 +41,13 @@ import java.util.Set;
 /**
  * A page for configuring Bluetooth options.
  */
-public class BluetoothFragment extends Fragment implements CompoundButton.OnCheckedChangeListener, AdapterView.OnItemSelectedListener {
+public class BluetoothFragment extends Fragment implements
+		CompoundButton.OnCheckedChangeListener,AdapterView.OnItemSelectedListener {
 	private SignalStrengthUpdateReceiver ssReceiver;
 	private static Switch serviceToggle;
 	private static TextView signalStrengthView;
 	private static Spinner refreshIntervalSpinner;
-	private static long refreshInterval;
+	private static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
 	private boolean serviceRunning;
 
 	@Override
