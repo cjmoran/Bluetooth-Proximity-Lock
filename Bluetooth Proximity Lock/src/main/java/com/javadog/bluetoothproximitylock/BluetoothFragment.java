@@ -43,12 +43,12 @@ import java.util.Set;
  */
 public class BluetoothFragment extends Fragment implements
 		CompoundButton.OnCheckedChangeListener,AdapterView.OnItemSelectedListener {
-	private SignalStrengthUpdateReceiver ssReceiver;
-	private static Switch serviceToggle;
-	private static TextView signalStrengthView;
-	private static Spinner refreshIntervalSpinner;
-	private static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
-	private boolean serviceRunning;
+	protected SignalStrengthUpdateReceiver ssReceiver;
+	protected static Switch serviceToggle;
+	protected static TextView signalStrengthView;
+	protected static Spinner refreshIntervalSpinner;
+	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
+	protected boolean serviceRunning;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -88,7 +88,7 @@ public class BluetoothFragment extends Fragment implements
 		manager.registerReceiver(ssReceiver, filter);
 	}
 
-	private void populateBtDevices() {
+	protected void populateBtDevices() {
 		//Get a Set of all paired bluetooth devices, convert to array
 		BluetoothManager.refreshBtDevices();
 		Set<BluetoothDevice> devicesSet = BluetoothManager.getAllBtDevices();
@@ -120,7 +120,7 @@ public class BluetoothFragment extends Fragment implements
 	 *
 	 * @param buttonIds The buttons to be disabled.
 	 */
-	private void disableButton(int... buttonIds) {
+	protected void disableButton(int... buttonIds) {
 		for(int id : buttonIds) {
 			getView().findViewById(id).setEnabled(false);
 		}
@@ -131,7 +131,7 @@ public class BluetoothFragment extends Fragment implements
 	 *
 	 * @param buttonIds The buttons to be enabled.
 	 */
-	private void enableButton(int... buttonIds) {
+	protected void enableButton(int... buttonIds) {
 		for(int id : buttonIds) {
 			getView().findViewById(id).setEnabled(true);
 		}
@@ -154,7 +154,7 @@ public class BluetoothFragment extends Fragment implements
 		}
 	}
 
-	private void stopBtService() {
+	protected void stopBtService() {
 		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
 		disableButton(
 				R.id.button_bt_service_start_stop,
@@ -167,7 +167,7 @@ public class BluetoothFragment extends Fragment implements
 		updateBtServiceUI();
 	}
 
-	private void startBtService() {
+	protected void startBtService() {
 		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
 		disableButton(
 				R.id.button_bt_service_start_stop,
@@ -186,9 +186,16 @@ public class BluetoothFragment extends Fragment implements
 		updateBtServiceUI();
 	}
 
+	/**
+	 * Updates the signal stre
+	 *
+	 * @param newSignalStrength The updated signal strength value.
+	 */
 	protected void updateSignalStrength(int newSignalStrength) {
-		if(signalStrengthView != null) {
+		if(signalStrengthView != null && newSignalStrength != Integer.MIN_VALUE) {
 			signalStrengthView.setText(String.valueOf(newSignalStrength));
+		} else if(newSignalStrength == Integer.MIN_VALUE) {
+			signalStrengthView.setText(getResources().getString(R.string.loading));
 		}
 	}
 
@@ -201,7 +208,7 @@ public class BluetoothFragment extends Fragment implements
 	 * Returns the millisecond value corresponding to the value selected in the refresh interval spinner.
 	 *
 	 * @param position The position of the selected item in the spinner.
-	 * @return The millisecond value the passed position represents.
+	 * @return The {@link java.lang.Long} millisecond value the passed position represents.
 	 */
 	private long interpretRefreshSpinner(int position) {
 		return new long[]{1000, 2000, 5000}[position];
@@ -264,7 +271,7 @@ public class BluetoothFragment extends Fragment implements
 	/**
 	 * Used in the main bluetooth fragment to receive on signal strength from SignalReaderService.
 	 */
-	private class SignalStrengthUpdateReceiver extends BroadcastReceiver {
+	public class SignalStrengthUpdateReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();

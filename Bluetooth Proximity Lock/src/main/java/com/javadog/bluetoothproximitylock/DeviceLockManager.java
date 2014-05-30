@@ -53,7 +53,7 @@ public class DeviceLockManager extends DeviceAdminReceiver {
 	 *
 	 * @param signalStrength The current signal strength as measured by SignalReaderService.
 	 */
-	protected void handleDeviceLock(int signalStrength) {
+	public void handleDeviceLock(int signalStrength) {
 		//TODO: Allow the user to specify distance tolerance. For now I will assume "medium" distance = lock.
 
 		//Add the latest sample to our queue of 5 samples

@@ -28,8 +28,8 @@ import android.util.Log;
  * This Service runs a background thread which periodically updates the signal strength.
  */
 public class SignalReaderService extends Service {
-	final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
-	final static String BT_ENABLE_BUTTON_ACTION = "com.javadog.bluetoothproximitylock.BT_ENABLE_BUTTON";
+	public final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
+	public final static String BT_ENABLE_BUTTON_ACTION = "com.javadog.bluetoothproximitylock.BT_ENABLE_BUTTON";
 
 	private static long refreshIntervalMs;
 	private static boolean iAmRunning;
@@ -41,7 +41,7 @@ public class SignalReaderService extends Service {
 		super.onStartCommand(intent, flags, startId);
 
 		//Refresh interval should have been passed in the intent
-		refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2000);
+		refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2001);
 
 		loader = new SignalStrengthLoader();
 		loader.execute();
@@ -88,6 +88,10 @@ public class SignalReaderService extends Service {
 
 	public static boolean isServiceRunning() {
 		return iAmRunning;
+	}
+
+	public long getRefreshIntervalMs() {
+		return refreshIntervalMs;
 	}
 
 	/**
@@ -161,8 +165,8 @@ public class SignalReaderService extends Service {
 				publishProgress(signalStrength);
 
 				Log.d(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
-				Log.d(MainActivity.DEBUG_TAG, "Using device: " + bluetoothManager.getPairedDevice().getName());
-				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + bluetoothManager.getPairedDevice().getAddress());
+				Log.d(MainActivity.DEBUG_TAG, "Using device: " + BluetoothManager.getPairedDevice().getName());
+				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + BluetoothManager.getPairedDevice().getAddress());
 				Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
 
 				//Decide whether the device should be locked/unlocked
@@ -191,7 +195,7 @@ public class SignalReaderService extends Service {
 
 		@Override
 		protected void onPostExecute(Void aVoid) {
-			cancel(true);
+
 		}
 	}
 }

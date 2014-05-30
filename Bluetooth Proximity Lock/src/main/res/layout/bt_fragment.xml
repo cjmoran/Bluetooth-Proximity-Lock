@@ -34,6 +34,22 @@
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
+			android:text="@string/signal_strength"/>
+		<TextView
+			android:id="@+id/bt_signal_strength"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"/>
+	</LinearLayout>
+
+	<LinearLayout
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center_vertical"
+		android:layout_marginTop="@dimen/button_top_margin">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
 			android:text="@string/device"/>
 		<Spinner
 			android:id="@+id/bt_device_chooser"

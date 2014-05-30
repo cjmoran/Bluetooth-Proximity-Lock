@@ -18,6 +18,7 @@ package com.javadog.bluetoothproximitylock;
 
 import android.util.Log;
 
+import java.util.Collection;
 import java.util.LinkedList;
 
 /**
@@ -51,6 +52,9 @@ public class CircularQueue<Integer> extends LinkedList<Integer> {
 	public float getAverageOfElements() {
 		float result;
 
+		if(limit == 0) {
+			throw new ArithmeticException("Division by zero!");
+		}
 		if(size() < limit) {
 			result = Float.MIN_VALUE;
 		} else {
@@ -64,5 +68,15 @@ public class CircularQueue<Integer> extends LinkedList<Integer> {
 		Log.d(MainActivity.DEBUG_TAG, "Average of last five distance samples: " + result);
 
 		return result;
+	}
+
+	@Override
+	public boolean addAll(int location, Collection<? extends Integer> collection) {
+		return false;
+	}
+
+	@Override
+	public boolean addAll(Collection<? extends Integer> collection) {
+		return false;
 	}
 }

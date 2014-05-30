@@ -10,7 +10,7 @@
 		lock/unlock your device.</string>
 
 	<!-- Bluetooth fragment -->
-    <string name="signal_strength">Bluetooth Signal Strength:\u0020</string>
+    <string name="signal_strength">Approx. Signal Strength:\u0020</string>
 	<string name="device">Device:</string>
 
 	<string name="refresh_interval">Refresh every:</string>

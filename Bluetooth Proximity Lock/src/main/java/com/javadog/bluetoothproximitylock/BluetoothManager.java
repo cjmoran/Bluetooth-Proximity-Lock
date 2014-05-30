@@ -61,11 +61,10 @@ public class BluetoothManager extends BluetoothGattCallback {
 	 *
 	 * @return The first bluetooth device the system feels like returning.
 	 */
-	protected BluetoothDevice getPairedDevice() {
-		return
-				selectedDevice == null ?
-						selectedDevice = BluetoothAdapter.getDefaultAdapter().getBondedDevices().iterator().next() :
-						selectedDevice;
+	public static BluetoothDevice getPairedDevice() {
+		return selectedDevice == null ?
+				selectedDevice = BluetoothAdapter.getDefaultAdapter().getBondedDevices().iterator().next() :
+				selectedDevice;
 	}
 
 	/**
@@ -74,7 +73,7 @@ public class BluetoothManager extends BluetoothGattCallback {
 	 * @param deviceAddress Which device I should return.
 	 * @return The requested device.
 	 */
-	protected static BluetoothDevice getPairedDevice(String deviceAddress) throws Resources.NotFoundException {
+	public static BluetoothDevice getPairedDevice(String deviceAddress) throws Resources.NotFoundException {
 		for(BluetoothDevice device : allBtDevices) {
 			if(device.getAddress().equalsIgnoreCase(deviceAddress)) {
 				return device;
