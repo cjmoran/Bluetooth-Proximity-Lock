@@ -46,6 +46,7 @@ public class DeviceLockManager extends DeviceAdminReceiver {
 		dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
 
 		//Assume the device is locked already (surprisingly difficult to determine)
+		lockEnabled = true;
 	}
 
 	/**

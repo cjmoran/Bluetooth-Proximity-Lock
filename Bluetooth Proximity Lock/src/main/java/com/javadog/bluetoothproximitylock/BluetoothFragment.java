@@ -16,10 +16,16 @@
 
 package com.javadog.bluetoothproximitylock;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.Fragment;
+import android.app.admin.DevicePolicyManager;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
@@ -43,6 +49,8 @@ import java.util.Set;
  */
 public class BluetoothFragment extends Fragment implements
 		CompoundButton.OnCheckedChangeListener,AdapterView.OnItemSelectedListener {
+	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
+
 	protected SignalStrengthUpdateReceiver ssReceiver;
 	protected static Switch serviceToggle;
 	protected static TextView signalStrengthView;
@@ -86,6 +94,14 @@ public class BluetoothFragment extends Fragment implements
 			ssReceiver = new SignalStrengthUpdateReceiver();
 		}
 		manager.registerReceiver(ssReceiver, filter);
+
+		//Check whether device admin privileges are active, and show a dialog if not
+		DevicePolicyManager dpm = (DevicePolicyManager) getActivity().getSystemService(Context.DEVICE_POLICY_SERVICE);
+		if(!dpm.isAdminActive(new ComponentName(getActivity().getApplicationContext(), DeviceLockManager.class))) {
+			AdminDialogFragment adminDialogFragment = new AdminDialogFragment();
+			adminDialogFragment.setCancelable(false);
+			adminDialogFragment.show(getFragmentManager(), "needsAdmin");
+		}
 	}
 
 	protected void populateBtDevices() {
@@ -294,5 +310,37 @@ public class BluetoothFragment extends Fragment implements
 						R.id.bt_refresh_interval);
 			}
 		}
+	}
+
+	/**
+	 * Used for alerting the user that they'll be redirected to Settings to enable device admin.
+	 */
+	public static class AdminDialogFragment extends DialogFragment {
+		@Override
+		public Dialog onCreateDialog(Bundle savedInstanceState) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+			builder.setTitle(getResources().getString(R.string.device_admin_dialog_title))
+					.setMessage(getResources().getString(R.string.device_admin_dialog_text))
+					.setPositiveButton(getResources().getString(R.string.ok), new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialogInterface, int i) {
+							Intent activateAdminIntent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+							activateAdminIntent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+									new ComponentName(getActivity().getApplicationContext(), DeviceLockManager.class));
+							activateAdminIntent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+									getResources().getString(R.string.device_admin_description));
+							startActivityForResult(activateAdminIntent, REQUEST_CODE_ENABLE_ADMIN);
+						}
+					})
+					.setNegativeButton(getResources().getString(R.string.nope), new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialogInterface, int i) {
+							getActivity().finish();
+						}
+					});
+			return builder.create();
+		}
+
+
 	}
 }
