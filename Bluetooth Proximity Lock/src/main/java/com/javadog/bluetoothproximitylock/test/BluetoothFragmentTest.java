@@ -18,6 +18,7 @@ package com.javadog.bluetoothproximitylock.test;
 
 import android.app.Fragment;
 import android.app.FragmentTransaction;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -78,8 +79,16 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				assertNotNull("signalStrengthView reference null check", signalStrengthView);
 				assertNotNull("refreshIntervalSpinner reference null check", refreshIntervalSpinner);
 
-				//TODO: Ensure values set match saved user preferences
-				// (code for this has yet to be written)
+				//Ensure UI values set match saved user preferences
+				assertEquals("Ensure selected bluetooth device matches saved user preference", devicesSet.toArray(
+						new BluetoothDevice[devicesSet.size()])[deviceChooser.getSelectedItemPosition()].getAddress(),
+						userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"));
+				assertEquals("Ensure selected lock distance matches saved user preference",
+						lockDistance.getSelectedItemPosition(),
+						userPrefs.getInt(PREF_LOCK_DISTANCE, -1));
+				assertEquals("Ensure selected refresh interval matches saved user preference",
+						refreshIntervalSpinner.getSelectedItemPosition(),
+						userPrefs.getInt(PREF_REFRESH_INTERVAL, -1));
 			}
 		};
 

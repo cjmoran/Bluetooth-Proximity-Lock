@@ -28,6 +28,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -48,15 +49,22 @@ import java.util.Set;
  * A page for configuring Bluetooth options.
  */
 public class BluetoothFragment extends Fragment implements
-		CompoundButton.OnCheckedChangeListener,AdapterView.OnItemSelectedListener {
+		CompoundButton.OnCheckedChangeListener, AdapterView.OnItemSelectedListener {
+	public final static String PREF_BT_DEVICE_ADDRESS = "btDeviceAddress";
+	public final static String PREF_LOCK_DISTANCE = "lockDistance";
+	public final static String PREF_REFRESH_INTERVAL = "refreshInterval";
 	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
 
 	protected SignalStrengthUpdateReceiver ssReceiver;
 	protected static Switch serviceToggle;
 	protected static TextView signalStrengthView;
+	protected static Spinner deviceChooser;
+	protected Set<BluetoothDevice> devicesSet;
+	protected static Spinner lockDistance;
 	protected static Spinner refreshIntervalSpinner;
 	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
 	protected boolean serviceRunning;
+	protected static SharedPreferences userPrefs;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -67,21 +75,25 @@ public class BluetoothFragment extends Fragment implements
 	public void onResume() {
 		super.onResume();
 
-		populateBtDevices();
+		initialize();
+
+		loadUserPreferences();
+
+		setupClickListeners();
+	}
+
+	/**
+	 * Initializes object references and performs some other set-up tasks.
+	 */
+	private void initialize() {
+		//Get a reference to the user preferences editor
+		userPrefs = getActivity().getPreferences(Context.MODE_PRIVATE);
 
 		//Get a fresh reference to our views
 		serviceToggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
 		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
+		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances);
 		refreshIntervalSpinner = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
-
-		setupClickListeners();
-
-		//Update refresh interval based on the value in the spinner
-		refreshInterval = interpretRefreshSpinner(refreshIntervalSpinner.getSelectedItemPosition());
-
-		//Check if the service is running, update our button depending
-		serviceRunning = SignalReaderService.isServiceRunning();
-		updateBtServiceUI();
 
 		//Get a reference to the local broadcast manager, and specify which intent actions we want to listen for
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
@@ -89,11 +101,15 @@ public class BluetoothFragment extends Fragment implements
 		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
 		filter.addAction(SignalReaderService.BT_ENABLE_BUTTON_ACTION);
 
-		//Instantiate the ssReceiver if it's not already, then register it with the LBM
+		//Instantiate the ssReceiver if it's not already, then register it with the broadcast manager
 		if(ssReceiver == null) {
 			ssReceiver = new SignalStrengthUpdateReceiver();
 		}
 		manager.registerReceiver(ssReceiver, filter);
+
+		//Check if the service is running, update our button depending
+		serviceRunning = SignalReaderService.isServiceRunning();
+		updateBtServiceUI();
 
 		//Check whether device admin privileges are active, and show a dialog if not
 		DevicePolicyManager dpm = (DevicePolicyManager) getActivity().getSystemService(Context.DEVICE_POLICY_SERVICE);
@@ -102,33 +118,74 @@ public class BluetoothFragment extends Fragment implements
 			adminDialogFragment.setCancelable(false);
 			adminDialogFragment.show(getFragmentManager(), "needsAdmin");
 		}
+
+		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
+
+		populateBtDevices();
 	}
 
 	protected void populateBtDevices() {
 		//Get a Set of all paired bluetooth devices, convert to array
 		BluetoothManager.refreshBtDevices();
-		Set<BluetoothDevice> devicesSet = BluetoothManager.getAllBtDevices();
+		devicesSet = BluetoothManager.getAllBtDevices();
 		ArrayList<String> devices = new ArrayList<>();
 		for(BluetoothDevice b : devicesSet) {
 			devices.add(b.getName() + " (" + b.getAddress() + ")");
 		}
 
 		//Set the adapter for the device spinner
-		Spinner deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
 		deviceChooser.setAdapter(new ArrayAdapter<>(
 				getActivity().getApplicationContext(), android.R.layout.simple_spinner_dropdown_item, devices));
+	}
 
-		//Set the onItemSelectedListener to this fragment
-		deviceChooser.setOnItemSelectedListener(this);
+	/**
+	 * Gets previously-set user prefs from Android and sets UI elements appropriately.
+	 */
+	private void loadUserPreferences() {
+		//Retrieve chosen device by bluetooth address
+		BluetoothDevice[] devices = devicesSet.toArray(new BluetoothDevice[devicesSet.size()]);
+		for(int i=0; i<devices.length; i++) {
+			if(devices[i].getAddress().equals(userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"))) {
+				deviceChooser.setSelection(i);
+				break;
+			}
+		}
+		lockDistance.setSelection(userPrefs.getInt(PREF_LOCK_DISTANCE, 1));
+		refreshIntervalSpinner.setSelection(userPrefs.getInt(PREF_REFRESH_INTERVAL, 1));
+
+		//Update internal copy of refresh interval based on the value in the spinner
+		refreshInterval = interpretRefreshSpinner(refreshIntervalSpinner.getSelectedItemPosition());
+	}
+
+	@Override
+	public void onPause() {
+		super.onPause();
+
+		//Unregister our BroadcastReceiver
+		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
+		manager.unregisterReceiver(ssReceiver);
+
+		//Save user preferences
+		SharedPreferences.Editor editor = userPrefs.edit();
+
+		//Save chosen device by bluetooth address; order might change
+		//TODO: Don't save chosen device if bluetooth is disabled at the time of saving.
+		editor.putString(PREF_BT_DEVICE_ADDRESS, devicesSet.toArray(
+				new BluetoothDevice[devicesSet.size()])[deviceChooser.getSelectedItemPosition()].getAddress());
+		editor.putInt(PREF_LOCK_DISTANCE, lockDistance.getSelectedItemPosition());
+		editor.putInt(PREF_REFRESH_INTERVAL, refreshIntervalSpinner.getSelectedItemPosition());
+
+		editor.apply();
 	}
 
 	private void setupClickListeners() {
 		//Service toggle switch
 		serviceToggle.setOnCheckedChangeListener(this);
 
-		//Refresh interval spinner
-		Spinner refreshInts = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
-		refreshInts.setOnItemSelectedListener(this);
+		Spinner[] spinners = {deviceChooser, lockDistance, refreshIntervalSpinner};
+		for(Spinner spinner : spinners) {
+			spinner.setOnItemSelectedListener(this);
+		}
 	}
 
 	/**
@@ -151,15 +208,6 @@ public class BluetoothFragment extends Fragment implements
 		for(int id : buttonIds) {
 			getView().findViewById(id).setEnabled(true);
 		}
-	}
-
-	@Override
-	public void onPause() {
-		super.onPause();
-
-		//Unregister our BroadcastReceiver
-		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
-		manager.unregisterReceiver(ssReceiver);
 	}
 
 	private void toggleBtService() {
@@ -203,7 +251,7 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	/**
-	 * Updates the signal stre
+	 * Updates the signal strength listed on the BluetoothFragment.
 	 *
 	 * @param newSignalStrength The updated signal strength value.
 	 */
@@ -250,6 +298,10 @@ public class BluetoothFragment extends Fragment implements
 				if(wasRunning) {
 					startBtService();
 				}
+				break;
+
+			case R.id.bt_lock_distances:
+
 				break;
 
 			case R.id.bt_refresh_interval:

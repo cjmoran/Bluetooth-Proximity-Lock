@@ -38,7 +38,8 @@
 		<TextView
 			android:id="@+id/bt_signal_strength"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content"/>
+			android:layout_height="wrap_content"
+			android:textAlignment="viewEnd"/>
 	</LinearLayout>
 
 	<LinearLayout
@@ -55,6 +56,23 @@
 			android:id="@+id/bt_device_chooser"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"/>
+	</LinearLayout>
+
+	<LinearLayout
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center_vertical"
+		android:layout_marginTop="@dimen/button_top_margin">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/lock_distance"/>
+		<Spinner
+			android:id="@+id/bt_lock_distances"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:entries="@array/lock_distances"/>
 	</LinearLayout>
 
 	<LinearLayout
