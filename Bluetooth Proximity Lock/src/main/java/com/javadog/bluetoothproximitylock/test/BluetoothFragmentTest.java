@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.v4.content.LocalBroadcastManager;
 import android.test.ActivityInstrumentationTestCase2;
+import android.view.View;
 import android.widget.Spinner;
 import android.widget.Switch;
 
@@ -79,9 +80,12 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				assertNotNull("refreshIntervalSpinner reference null check", refreshIntervalSpinner);
 
 				//Ensure UI values set match saved user preferences
-				assertEquals("Ensure selected bluetooth device matches saved user preference", devicesSet.toArray(
-						new BluetoothDevice[devicesSet.size()])[deviceChooser.getSelectedItemPosition()].getAddress(),
-						userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"));
+				int selectedItem = deviceChooser.getSelectedItemPosition();
+				if(selectedItem != Spinner.INVALID_POSITION) {
+					assertEquals("Ensure selected bluetooth device matches saved user preference", devicesSet.toArray(
+									new BluetoothDevice[devicesSet.size()])[selectedItem].getAddress(),
+							userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"));
+				}
 				assertEquals("Ensure selected lock distance matches saved user preference",
 						lockDistance.getSelectedItemPosition(),
 						userPrefs.getInt(PREF_LOCK_DISTANCE, -1));
@@ -103,29 +107,27 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#disableUiElement(int...)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#disableUiElement(View...)}
 	 */
-	public void testDisableButton() {
+	public void testDisableUiElement() {
 		BluetoothFragment fragment = new BluetoothFragment() {
 			@Override
-			protected void disableUiElement(int... elementIds) {
-				elementIds = new int[] {
-					R.id.button_bt_service_start_stop,
-					R.id.bt_device_chooser
+			protected void disableUiElement(View... views) {
+				views = new View[] {
+					getView().findViewById(R.id.button_bt_service_start_stop),
+					getView().findViewById(R.id.bt_device_chooser)
 				};
 
-				Switch startButton = (Switch) getView().findViewById(elementIds[0]);
-				Spinner deviceSpinner = (Spinner) getView().findViewById(elementIds[1]);
-
 				//Set them to enabled first
-				startButton.setEnabled(true);
-				deviceSpinner.setEnabled(true);
+				views[0].setEnabled(true);
+				views[1].setEnabled(true);
 
-				super.disableUiElement(elementIds);
+				super.disableUiElement(views);
 
 				assertFalse("Two UI elements should be disabled",
-						startButton.isEnabled() &&
-						deviceSpinner.isEnabled());
+						views[0].isEnabled() &&
+								views[1].isEnabled()
+				);
 			}
 		};
 
@@ -133,29 +135,27 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#enableUiElement(int...)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#enableUiElement(View...)}
 	 */
-	public void testEnableButton() {
+	public void testEnableUiElement() {
 		BluetoothFragment fragment = new BluetoothFragment() {
 			@Override
-			protected void enableUiElement(int... buttonIds) {
-				buttonIds = new int[] {
-						R.id.button_bt_service_start_stop,
-						R.id.bt_device_chooser
+			protected void enableUiElement(View... views) {
+				views = new View[] {
+						getView().findViewById(R.id.button_bt_service_start_stop),
+						getView().findViewById(R.id.bt_device_chooser)
 				};
 
-				Switch startButton = (Switch) getView().findViewById(buttonIds[0]);
-				Spinner deviceSpinner = (Spinner) getView().findViewById(buttonIds[1]);
-
 				//Set them to disabled first
-				startButton.setEnabled(false);
-				deviceSpinner.setEnabled(false);
+				views[0].setEnabled(false);
+				views[1].setEnabled(false);
 
-				super.enableUiElement(buttonIds);
+				super.enableUiElement(views);
 
 				assertTrue("Two UI elements should be enabled",
-						startButton.isEnabled() &&
-						deviceSpinner.isEnabled());
+						views[0].isEnabled() &&
+								views[1].isEnabled()
+				);
 			}
 		};
 

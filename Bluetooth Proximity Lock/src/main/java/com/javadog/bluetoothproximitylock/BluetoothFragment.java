@@ -31,7 +31,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -80,9 +79,7 @@ public class BluetoothFragment extends Fragment implements
 		super.onResume();
 
 		initialize();
-
 		loadUserPreferences();
-
 		setupClickListeners();
 	}
 
@@ -219,24 +216,24 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	/**
-	 * Disables the element(s) with the specified ID(s).
+	 * Disables the view(s) with the specified ID(s).
 	 *
-	 * @param elementIds The buttons to be disabled.
+	 * @param views The views to be disabled.
 	 */
-	protected void disableUiElement(int... elementIds) {
-		for(int id : elementIds) {
-			getView().findViewById(id).setEnabled(false);
+	protected void disableUiElement(View... views) {
+		for(View v : views) {
+			v.setEnabled(false);
 		}
 	}
 
 	/**
-	 * Enables the element(s) with the specified ID(s).
+	 * Enables the view(s) with the specified ID(s).
 	 *
-	 * @param elementIds The buttons to be enabled.
+	 * @param views The views to be enabled.
 	 */
-	protected void enableUiElement(int... elementIds) {
-		for(int id : elementIds) {
-			getView().findViewById(id).setEnabled(true);
+	protected void enableUiElement(View... views) {
+		for(View v : views) {
+			v.setEnabled(true);
 		}
 	}
 
@@ -251,9 +248,9 @@ public class BluetoothFragment extends Fragment implements
 	protected void stopBtService() {
 		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
 		disableUiElement(
-				R.id.button_bt_service_start_stop,
-				R.id.bt_device_chooser,
-				R.id.bt_refresh_interval);
+				serviceToggle,
+				deviceChooser,
+				refreshIntervalSpinner);
 
 		getActivity().stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
 
@@ -268,9 +265,9 @@ public class BluetoothFragment extends Fragment implements
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
 			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
 			disableUiElement(
-					R.id.button_bt_service_start_stop,
-					R.id.bt_device_chooser,
-					R.id.bt_refresh_interval);
+					serviceToggle,
+					deviceChooser,
+					refreshIntervalSpinner);
 
 			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
 
@@ -384,12 +381,12 @@ public class BluetoothFragment extends Fragment implements
 				final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
 				switch(state) {
 					case BluetoothAdapter.STATE_ON:
-						enableUiElement(R.id.bt_device_chooser);
+						enableUiElement(deviceChooser);
 						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth enabled");
 						break;
 
 					case BluetoothAdapter.STATE_OFF:
-						disableUiElement(R.id.bt_device_chooser);
+						disableUiElement(deviceChooser);
 						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth disabled");
 						break;
 				}
@@ -414,13 +411,13 @@ public class BluetoothFragment extends Fragment implements
 				updateSignalStrength(newSignalStrength);
 			}
 
-			//When these broadcast are received, we want to enable the Start/Stop switch.
+			//When these broadcast are received, we want to enable the UI
 			else if(action.equals(SignalReaderService.BT_ENABLE_BUTTON_ACTION)) {
 				Log.d(MainActivity.DEBUG_TAG, "Received BT_ENABLE_BUTTON intent.");
 				enableUiElement(
-						R.id.button_bt_service_start_stop,
-						R.id.bt_device_chooser,
-						R.id.bt_refresh_interval);
+						serviceToggle,
+						deviceChooser,
+						refreshIntervalSpinner);
 			}
 		}
 	}
