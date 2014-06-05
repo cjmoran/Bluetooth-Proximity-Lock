@@ -26,7 +26,6 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.test.ActivityInstrumentationTestCase2;
 import android.widget.Spinner;
 import android.widget.Switch;
-import android.widget.TextView;
 
 import com.javadog.bluetoothproximitylock.BluetoothFragment;
 import com.javadog.bluetoothproximitylock.R;
@@ -104,25 +103,25 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#disableButton(int...)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#disableUiElement(int...)}
 	 */
 	public void testDisableButton() {
 		BluetoothFragment fragment = new BluetoothFragment() {
 			@Override
-			protected void disableButton(int... buttonIds) {
-				buttonIds = new int[] {
+			protected void disableUiElement(int... elementIds) {
+				elementIds = new int[] {
 					R.id.button_bt_service_start_stop,
 					R.id.bt_device_chooser
 				};
 
-				Switch startButton = (Switch) getView().findViewById(buttonIds[0]);
-				Spinner deviceSpinner = (Spinner) getView().findViewById(buttonIds[1]);
+				Switch startButton = (Switch) getView().findViewById(elementIds[0]);
+				Spinner deviceSpinner = (Spinner) getView().findViewById(elementIds[1]);
 
 				//Set them to enabled first
 				startButton.setEnabled(true);
 				deviceSpinner.setEnabled(true);
 
-				super.disableButton(buttonIds);
+				super.disableUiElement(elementIds);
 
 				assertFalse("Two UI elements should be disabled",
 						startButton.isEnabled() &&
@@ -134,12 +133,12 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#enableButton(int...)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment#enableUiElement(int...)}
 	 */
 	public void testEnableButton() {
 		BluetoothFragment fragment = new BluetoothFragment() {
 			@Override
-			protected void enableButton(int... buttonIds) {
+			protected void enableUiElement(int... buttonIds) {
 				buttonIds = new int[] {
 						R.id.button_bt_service_start_stop,
 						R.id.bt_device_chooser
@@ -152,7 +151,7 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				startButton.setEnabled(false);
 				deviceSpinner.setEnabled(false);
 
-				super.enableButton(buttonIds);
+				super.enableUiElement(buttonIds);
 
 				assertTrue("Two UI elements should be enabled",
 						startButton.isEnabled() &&

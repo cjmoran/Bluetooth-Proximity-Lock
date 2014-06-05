@@ -21,6 +21,7 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.Fragment;
 import android.app.admin.DevicePolicyManager;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -30,6 +31,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -54,6 +56,7 @@ public class BluetoothFragment extends Fragment implements
 	public final static String PREF_LOCK_DISTANCE = "lockDistance";
 	public final static String PREF_REFRESH_INTERVAL = "refreshInterval";
 	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
+	final static int REQUEST_CODE_ENABLE_BT = 873;
 
 	protected SignalStrengthUpdateReceiver ssReceiver;
 	protected static Switch serviceToggle;
@@ -65,6 +68,7 @@ public class BluetoothFragment extends Fragment implements
 	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
 	protected boolean serviceRunning;
 	protected static SharedPreferences userPrefs;
+	protected BluetoothStateReceiver btStateReceiver;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -92,7 +96,7 @@ public class BluetoothFragment extends Fragment implements
 		//Get a fresh reference to our views
 		serviceToggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
 		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
-		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances);
+		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances); //TODO: This doesn't actually do anything yet.
 		refreshIntervalSpinner = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
 
 		//Get a reference to the local broadcast manager, and specify which intent actions we want to listen for
@@ -122,6 +126,20 @@ public class BluetoothFragment extends Fragment implements
 		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
 
 		populateBtDevices();
+
+		//Start the device chooser in a disabled state if Bluetooth is disabled
+		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
+			deviceChooser.setEnabled(true);
+		} else {
+			deviceChooser.setEnabled(false);
+		}
+
+		//Register a listener with the system to get updates about changes to Bluetooth state
+		if(btStateReceiver == null) {
+			btStateReceiver = new BluetoothStateReceiver();
+		}
+		IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+		getActivity().registerReceiver(btStateReceiver, btFilter);
 	}
 
 	protected void populateBtDevices() {
@@ -144,10 +162,12 @@ public class BluetoothFragment extends Fragment implements
 	private void loadUserPreferences() {
 		//Retrieve chosen device by bluetooth address
 		BluetoothDevice[] devices = devicesSet.toArray(new BluetoothDevice[devicesSet.size()]);
-		for(int i=0; i<devices.length; i++) {
-			if(devices[i].getAddress().equals(userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"))) {
-				deviceChooser.setSelection(i);
-				break;
+		if(!userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "abc").equals("none")) {
+			for(int i = 0; i < devices.length; i++) {
+				if(devices[i].getAddress().equals(userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"))) {
+					deviceChooser.setSelection(i);
+					break;
+				}
 			}
 		}
 		lockDistance.setSelection(userPrefs.getInt(PREF_LOCK_DISTANCE, 1));
@@ -161,7 +181,7 @@ public class BluetoothFragment extends Fragment implements
 	public void onPause() {
 		super.onPause();
 
-		//Unregister our BroadcastReceiver
+		//Unregister our LocalBroadcastReceiver
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
 		manager.unregisterReceiver(ssReceiver);
 
@@ -169,13 +189,23 @@ public class BluetoothFragment extends Fragment implements
 		SharedPreferences.Editor editor = userPrefs.edit();
 
 		//Save chosen device by bluetooth address; order might change
-		//TODO: Don't save chosen device if bluetooth is disabled at the time of saving.
-		editor.putString(PREF_BT_DEVICE_ADDRESS, devicesSet.toArray(
-				new BluetoothDevice[devicesSet.size()])[deviceChooser.getSelectedItemPosition()].getAddress());
+		int selectedItem = deviceChooser.getSelectedItemPosition();
+		if(selectedItem != Spinner.INVALID_POSITION) {
+			editor.putString(PREF_BT_DEVICE_ADDRESS,
+							devicesSet.toArray(new BluetoothDevice[devicesSet.size()])[selectedItem].getAddress());
+		}
 		editor.putInt(PREF_LOCK_DISTANCE, lockDistance.getSelectedItemPosition());
 		editor.putInt(PREF_REFRESH_INTERVAL, refreshIntervalSpinner.getSelectedItemPosition());
 
 		editor.apply();
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+
+		//Unregister the BluetoothStateReceiver
+		getActivity().unregisterReceiver(btStateReceiver);
 	}
 
 	private void setupClickListeners() {
@@ -189,23 +219,23 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	/**
-	 * Disables the button(s) with the specified buttonId(s).
+	 * Disables the element(s) with the specified ID(s).
 	 *
-	 * @param buttonIds The buttons to be disabled.
+	 * @param elementIds The buttons to be disabled.
 	 */
-	protected void disableButton(int... buttonIds) {
-		for(int id : buttonIds) {
+	protected void disableUiElement(int... elementIds) {
+		for(int id : elementIds) {
 			getView().findViewById(id).setEnabled(false);
 		}
 	}
 
 	/**
-	 * Enables the button(s) with the specified buttonId(s).
+	 * Enables the element(s) with the specified ID(s).
 	 *
-	 * @param buttonIds The buttons to be enabled.
+	 * @param elementIds The buttons to be enabled.
 	 */
-	protected void enableButton(int... buttonIds) {
-		for(int id : buttonIds) {
+	protected void enableUiElement(int... elementIds) {
+		for(int id : elementIds) {
 			getView().findViewById(id).setEnabled(true);
 		}
 	}
@@ -220,7 +250,7 @@ public class BluetoothFragment extends Fragment implements
 
 	protected void stopBtService() {
 		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
-		disableButton(
+		disableUiElement(
 				R.id.button_bt_service_start_stop,
 				R.id.bt_device_chooser,
 				R.id.bt_refresh_interval);
@@ -231,23 +261,31 @@ public class BluetoothFragment extends Fragment implements
 		updateBtServiceUI();
 	}
 
+	/**
+	 * Handles starting of the service if all necessary conditions are met.
+	 */
 	protected void startBtService() {
-		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
-		disableButton(
-				R.id.button_bt_service_start_stop,
-				R.id.bt_device_chooser,
-				R.id.bt_refresh_interval);
+		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
+			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
+			disableUiElement(
+					R.id.button_bt_service_start_stop,
+					R.id.bt_device_chooser,
+					R.id.bt_refresh_interval);
 
-		Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
+			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
 
-		//Be sure to pass the device address and refresh interval with the intent
-		startIntent.putExtra("btDeviceAddress", BluetoothManager.getSelectedDevice().getAddress());
-		startIntent.putExtra("btRefreshInterval", refreshInterval);
+			//Be sure to pass the device address and refresh interval with the intent
+			startIntent.putExtra("btDeviceAddress", BluetoothManager.getSelectedDevice().getAddress());
+			startIntent.putExtra("btRefreshInterval", refreshInterval);
 
-		getActivity().startService(startIntent);
+			getActivity().startService(startIntent);
 
-		serviceRunning = true;
-		updateBtServiceUI();
+			serviceRunning = true;
+			updateBtServiceUI();
+		} else {
+			new BluetoothDialogFragment().show(getFragmentManager(), "needsBluetooth");
+			serviceToggle.setChecked(false);
+		}
 	}
 
 	/**
@@ -337,6 +375,29 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	/**
+	 * Used to receive updates about Bluetooth state (enabled/disabled/etc).
+	 */
+	private class BluetoothStateReceiver extends BroadcastReceiver {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(intent.getAction().equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+				final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+				switch(state) {
+					case BluetoothAdapter.STATE_ON:
+						enableUiElement(R.id.bt_device_chooser);
+						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth enabled");
+						break;
+
+					case BluetoothAdapter.STATE_OFF:
+						disableUiElement(R.id.bt_device_chooser);
+						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth disabled");
+						break;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Used in the main bluetooth fragment to receive on signal strength from SignalReaderService.
 	 */
 	public class SignalStrengthUpdateReceiver extends BroadcastReceiver {
@@ -356,7 +417,7 @@ public class BluetoothFragment extends Fragment implements
 			//When these broadcast are received, we want to enable the Start/Stop switch.
 			else if(action.equals(SignalReaderService.BT_ENABLE_BUTTON_ACTION)) {
 				Log.d(MainActivity.DEBUG_TAG, "Received BT_ENABLE_BUTTON intent.");
-				enableButton(
+				enableUiElement(
 						R.id.button_bt_service_start_stop,
 						R.id.bt_device_chooser,
 						R.id.bt_refresh_interval);
@@ -392,7 +453,33 @@ public class BluetoothFragment extends Fragment implements
 					});
 			return builder.create();
 		}
+	}
 
-
+	/**
+	 * Used to prompt the user to enable Bluetooth if they try to start the service without it.
+	 */
+	public static class BluetoothDialogFragment extends DialogFragment {
+		@Override
+		public Dialog onCreateDialog(Bundle savedInstanceState) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+			builder.setTitle(getResources().getString(R.string.enable_bt_dialog_title))
+					.setMessage(getResources().getString(R.string.enable_bt_dialog_text))
+					.setPositiveButton(getResources().getString(R.string.bt_settings),
+							new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialogInterface, int i) {
+							Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+							startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
+						}
+					})
+					.setNegativeButton(getResources().getString(R.string.cancel),
+							new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialogInterface, int i) {
+							dialogInterface.cancel();
+						}
+					});
+			return builder.create();
+		}
 	}
 }

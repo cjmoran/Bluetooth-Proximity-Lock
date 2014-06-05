@@ -26,6 +26,8 @@ import android.util.Log;
 
 /**
  * This Service runs a background thread which periodically updates the signal strength.
+ *
+ * TODO: Not sure if service handles BT state changes gracefully.
  */
 public class SignalReaderService extends Service {
 	public final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";

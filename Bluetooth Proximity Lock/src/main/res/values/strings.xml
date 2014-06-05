@@ -9,10 +9,17 @@
 	<string name="device_admin_dialog_title">Admin Permissions Required</string>
 	<string name="device_admin_dialog_text">This app requires that you grant it administrative permissions so it can alter
 		your device\'s lock state. Pressing "OK" will take you to a screen where you can grant this permission.</string>
-	<string name="ok">OK</string>
 	<string name="nope">I trust no one</string>
 	<string name="device_admin_description">Allow Bluetooth Proximity Lock to set passwords and
 		lock/unlock your device.</string>
+
+	<string name="enable_bt_dialog_title">Bluetooth is Disabled</string>
+	<string name="enable_bt_dialog_text">Bluetooth needs to be enabled.
+		Would you like to go to Bluetooth settings?</string>
+	<string name="bt_settings">Bluetooth Settings</string>
+
+	<string name="ok">Okay</string>
+	<string name="cancel">Cancel</string>
 
 	<!-- Bluetooth fragment -->
 	<string name="service_is">Service is currently:</string>

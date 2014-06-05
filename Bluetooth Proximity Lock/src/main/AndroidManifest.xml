@@ -3,6 +3,7 @@
     package="com.javadog.bluetoothproximitylock" >
 	
 	<uses-permission android:name="android.permission.BLUETOOTH"/>
+	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
 
     <application
         android:allowBackup="true"
@@ -19,9 +20,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-	    <!-- For testing only -->
-	    <activity android:name=".test.PlaceholderFragmentActivity"/>
 	    
 	    <service android:name=".SignalReaderService"/>
 	    
@@ -35,6 +33,9 @@
 			    <action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/>
 		    </intent-filter>
 	    </receiver>
+
+	    <!-- For testing only -->
+	    <activity android:name=".test.PlaceholderFragmentActivity"/>
 
     </application>
 
