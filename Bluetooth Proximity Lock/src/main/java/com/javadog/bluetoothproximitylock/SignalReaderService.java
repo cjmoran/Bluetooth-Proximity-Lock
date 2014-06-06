@@ -17,12 +17,16 @@
 package com.javadog.bluetoothproximitylock;
 
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.widget.Toast;
 
 /**
  * This Service runs a background thread which periodically updates the signal strength.
@@ -37,6 +41,7 @@ public class SignalReaderService extends Service {
 	private static boolean iAmRunning;
 
 	private SignalStrengthLoader loader;
+	private BluetoothStateReceiver btStateReceiver;
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
@@ -54,6 +59,11 @@ public class SignalReaderService extends Service {
 
 		//Service has started now, so we can enable the fragment button.
 		enableFragmentButton();
+
+		//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
+		btStateReceiver = new BluetoothStateReceiver(loader);
+		IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+		registerReceiver(btStateReceiver, filter);
 
 		//Keep the service in a "started" state even if killed for memory
 		return START_STICKY;
@@ -74,6 +84,8 @@ public class SignalReaderService extends Service {
 
 		//The service has finished, so let's enable the BTFragment's button again
 		enableFragmentButton();
+
+		unregisterReceiver(btStateReceiver);
 	}
 
 	/**
@@ -90,10 +102,6 @@ public class SignalReaderService extends Service {
 
 	public static boolean isServiceRunning() {
 		return iAmRunning;
-	}
-
-	public long getRefreshIntervalMs() {
-		return refreshIntervalMs;
 	}
 
 	/**
@@ -153,6 +161,12 @@ public class SignalReaderService extends Service {
 		}
 
 		@Override
+		protected void onPreExecute() {
+			Toast.makeText(getApplicationContext(), "Bluetooth auto-lock enabled", Toast.LENGTH_SHORT).show();
+			Log.d(MainActivity.DEBUG_TAG, "BT signal strength loader started");
+		}
+
+		@Override
 		protected Void doInBackground(Void... voids) {
 			while(!plzStop) {
 				//Read remote RSSI. If we have a request for it out already, don't request again.
@@ -197,7 +211,31 @@ public class SignalReaderService extends Service {
 
 		@Override
 		protected void onPostExecute(Void aVoid) {
+			Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
+			Log.d(MainActivity.DEBUG_TAG, "BT signal strength loader stopped");
+		}
+	}
 
+	/**
+	 * Subscribes to BT status updates and kills the SignalStrengthLoader if BT is disabled.
+	 */
+	private class BluetoothStateReceiver extends BroadcastReceiver {
+		private SignalStrengthLoader loaderRef;
+
+		public BluetoothStateReceiver(SignalStrengthLoader loaderReference) {
+			loaderRef = loaderReference;
+		}
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(intent.getAction().equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+				switch(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+					case BluetoothAdapter.STATE_TURNING_OFF:
+					case BluetoothAdapter.STATE_OFF:
+						loaderRef.plzStop();
+						break;
+				}
+			}
 		}
 	}
 }

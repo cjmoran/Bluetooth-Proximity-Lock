@@ -13,16 +13,14 @@
 	<string name="device_admin_description">Allow Bluetooth Proximity Lock to set passwords and
 		lock/unlock your device.</string>
 
-	<string name="enable_bt_dialog_title">Bluetooth is Disabled</string>
-	<string name="enable_bt_dialog_text">Bluetooth needs to be enabled.
-		Would you like to go to Bluetooth settings?</string>
-	<string name="bt_settings">Bluetooth Settings</string>
+	<string name="enable_bt_dialog_title">Bluetooth is off</string>
+	<string name="enable_bt_dialog_text">Bluetooth needs to be enabled. Would you like to enable it?</string>
 
 	<string name="ok">Okay</string>
 	<string name="cancel">Cancel</string>
 
 	<!-- Bluetooth fragment -->
-	<string name="service_is">Service is currently:</string>
+	<string name="service_is">Bluetooth locking is currently:</string>
 	<string name="loading">Loading&#8230;</string>
 
     <string name="signal_strength">Approx. Signal Strength:\u0020</string>

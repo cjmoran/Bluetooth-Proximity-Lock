@@ -280,7 +280,8 @@ public class BluetoothFragment extends Fragment implements
 			serviceRunning = true;
 			updateBtServiceUI();
 		} else {
-			new BluetoothDialogFragment().show(getFragmentManager(), "needsBluetooth");
+			Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
 			serviceToggle.setChecked(false);
 		}
 	}
@@ -446,34 +447,6 @@ public class BluetoothFragment extends Fragment implements
 						@Override
 						public void onClick(DialogInterface dialogInterface, int i) {
 							getActivity().finish();
-						}
-					});
-			return builder.create();
-		}
-	}
-
-	/**
-	 * Used to prompt the user to enable Bluetooth if they try to start the service without it.
-	 */
-	public static class BluetoothDialogFragment extends DialogFragment {
-		@Override
-		public Dialog onCreateDialog(Bundle savedInstanceState) {
-			AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-			builder.setTitle(getResources().getString(R.string.enable_bt_dialog_title))
-					.setMessage(getResources().getString(R.string.enable_bt_dialog_text))
-					.setPositiveButton(getResources().getString(R.string.bt_settings),
-							new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialogInterface, int i) {
-							Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-							startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
-						}
-					})
-					.setNegativeButton(getResources().getString(R.string.cancel),
-							new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialogInterface, int i) {
-							dialogInterface.cancel();
 						}
 					});
 			return builder.create();
