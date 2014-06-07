@@ -175,12 +175,12 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				Switch toggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
 				toggle.setChecked(true);
 
-				serviceRunning = true;
+				serviceBound = true;
 
 				super.stopBtService();
 
 				assertFalse("Switch should be in disabled state", toggle.isChecked());
-				assertFalse("serviceRunning should be false", serviceRunning);
+				assertFalse("serviceRunning should be false", serviceBound);
 			}
 		};
 
@@ -200,12 +200,12 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				Switch toggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
 				toggle.setChecked(false);
 
-				serviceRunning = false;
+				serviceBound = false;
 
 				super.startBtService();
 
 				assertTrue("Switch should be in enabled state", toggle.isChecked());
-				assertTrue("serviceRunning should be true", serviceRunning);
+				assertTrue("serviceRunning should be true", serviceBound);
 			}
 		};
 
@@ -246,16 +246,11 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getInstrumentation().getTargetContext());
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
-		filter.addAction(SignalReaderService.BT_ENABLE_BUTTON_ACTION);
 		manager.registerReceiver(receiver.getReceiver(), filter);
 
 		Intent testIntent = new Intent(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
 		testIntent.putExtra("message", 6969);
 		manager.sendBroadcast(testIntent);
-
-		Intent testIntent2 = new Intent(SignalReaderService.BT_ENABLE_BUTTON_ACTION);
-		testIntent2.putExtra("message", "lol");
-		manager.sendBroadcast(testIntent2);
 	}
 
 	public static class ReceiverTest extends BluetoothFragment {
@@ -265,12 +260,10 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 				if(intent.getAction().equals(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION)) {
 					assertEquals("Test whether signal strength message was received successfully", 6969,
 							intent.getIntExtra("message", 0));
-				} else if(intent.getAction().equals(SignalReaderService.BT_ENABLE_BUTTON_ACTION)) {
-					assertEquals("Test whether String message was received successfully", "lol",
-							intent.getStringExtra("message"));
 				}
 			}
 		};
+
 		public BluetoothFragment.SignalStrengthUpdateReceiver getReceiver() {
 			return receiver;
 		}

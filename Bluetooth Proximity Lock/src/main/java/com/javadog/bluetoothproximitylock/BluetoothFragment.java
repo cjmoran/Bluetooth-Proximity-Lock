@@ -29,8 +29,10 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -57,7 +59,7 @@ public class BluetoothFragment extends Fragment implements
 	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
 	final static int REQUEST_CODE_ENABLE_BT = 873;
 
-	protected SignalStrengthUpdateReceiver ssReceiver;
+	protected static SignalStrengthUpdateReceiver ssReceiver;
 	protected static Switch serviceToggle;
 	protected static TextView signalStrengthView;
 	protected static Spinner deviceChooser;
@@ -65,7 +67,7 @@ public class BluetoothFragment extends Fragment implements
 	protected static Spinner lockDistance;
 	protected static Spinner refreshIntervalSpinner;
 	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
-	protected boolean serviceRunning;
+	protected boolean serviceBound;
 	protected static SharedPreferences userPrefs;
 	protected BluetoothStateReceiver btStateReceiver;
 
@@ -100,17 +102,12 @@ public class BluetoothFragment extends Fragment implements
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
-		filter.addAction(SignalReaderService.BT_ENABLE_BUTTON_ACTION);
 
 		//Instantiate the ssReceiver if it's not already, then register it with the broadcast manager
 		if(ssReceiver == null) {
 			ssReceiver = new SignalStrengthUpdateReceiver();
 		}
 		manager.registerReceiver(ssReceiver, filter);
-
-		//Check if the service is running, update our button depending
-		serviceRunning = SignalReaderService.isServiceRunning();
-		updateBtServiceUI();
 
 		//Check whether device admin privileges are active, and show a dialog if not
 		DevicePolicyManager dpm = (DevicePolicyManager) getActivity().getSystemService(Context.DEVICE_POLICY_SERVICE);
@@ -131,6 +128,8 @@ public class BluetoothFragment extends Fragment implements
 			deviceChooser.setEnabled(false);
 		}
 
+		bindToService();
+
 		//Register a listener with the system to get updates about changes to Bluetooth state
 		if(btStateReceiver == null) {
 			btStateReceiver = new BluetoothStateReceiver();
@@ -138,6 +137,55 @@ public class BluetoothFragment extends Fragment implements
 		IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 		getActivity().registerReceiver(btStateReceiver, btFilter);
 	}
+
+	/**
+	 * Binds to the service.
+	 */
+	private void bindToService() {
+		if(SignalReaderService.isServiceRunning()) {
+			Intent bindService = new Intent(getActivity(), SignalReaderService.class);
+			getActivity().bindService(bindService, serviceConnection, Context.BIND_AUTO_CREATE);
+		}
+	}
+
+	/**
+	 * Unbinds from the service.
+	 */
+	private void unbindFromService() {
+		if(serviceBound) {
+			getActivity().unbindService(serviceConnection);
+		}
+	}
+
+	/**
+	 * Attempts to bind to the SignalReaderService, if it's running. Also handles disconnect.
+	 */
+	private ServiceConnection serviceConnection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+			serviceBound = true;
+			updateBtServiceUI();
+
+			//Enable UI elements again
+			enableUiElement(
+					serviceToggle,
+					deviceChooser,
+					lockDistance,
+					refreshIntervalSpinner);
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName componentName) {
+			serviceBound = false;
+
+			//Enable UI elements again
+			enableUiElement(
+					serviceToggle,
+					deviceChooser,
+					lockDistance,
+					refreshIntervalSpinner);
+		}
+	};
 
 	protected void populateBtDevices() {
 		//Get a Set of all paired bluetooth devices, convert to array
@@ -193,13 +241,10 @@ public class BluetoothFragment extends Fragment implements
 		}
 		editor.putInt(PREF_LOCK_DISTANCE, lockDistance.getSelectedItemPosition());
 		editor.putInt(PREF_REFRESH_INTERVAL, refreshIntervalSpinner.getSelectedItemPosition());
-
 		editor.apply();
-	}
 
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
+		//Unbind from SignalReaderService
+		unbindFromService();
 
 		//Unregister the BluetoothStateReceiver
 		getActivity().unregisterReceiver(btStateReceiver);
@@ -238,7 +283,7 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	private void toggleBtService() {
-		if(serviceRunning) {
+		if(serviceBound) {
 			stopBtService();
 		} else {
 			startBtService();
@@ -246,16 +291,14 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	protected void stopBtService() {
-		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
+		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled when binding.
 		disableUiElement(
 				serviceToggle,
 				deviceChooser,
+				lockDistance,
 				refreshIntervalSpinner);
 
 		getActivity().stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
-
-		serviceRunning = false;
-		updateBtServiceUI();
 	}
 
 	/**
@@ -263,10 +306,11 @@ public class BluetoothFragment extends Fragment implements
 	 */
 	protected void startBtService() {
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
-			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled by a broadcast.
+			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled when binding.
 			disableUiElement(
 					serviceToggle,
 					deviceChooser,
+					lockDistance,
 					refreshIntervalSpinner);
 
 			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
@@ -276,9 +320,7 @@ public class BluetoothFragment extends Fragment implements
 			startIntent.putExtra("btRefreshInterval", refreshInterval);
 
 			getActivity().startService(startIntent);
-
-			serviceRunning = true;
-			updateBtServiceUI();
+			bindToService();
 		} else {
 			Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 			startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
@@ -301,7 +343,7 @@ public class BluetoothFragment extends Fragment implements
 
 	private void updateBtServiceUI() {
 		//Update the switch
-		serviceToggle.setChecked(serviceRunning);
+		serviceToggle.setChecked(serviceBound);
 	}
 
 	/**
@@ -320,8 +362,7 @@ public class BluetoothFragment extends Fragment implements
 		switch(adapterView.getId()) {
 			case R.id.bt_device_chooser:
 				//First stop the service if it's running
-				wasRunning = SignalReaderService.isServiceRunning();
-				if(wasRunning) {
+				if(wasRunning = serviceBound) {
 					stopBtService();
 				}
 
@@ -342,8 +383,7 @@ public class BluetoothFragment extends Fragment implements
 
 			case R.id.bt_refresh_interval:
 				//Stop the service if it was running
-				wasRunning = SignalReaderService.isServiceRunning();
-				if(wasRunning) {
+				if(wasRunning = serviceBound) {
 					stopBtService();
 				}
 
@@ -396,7 +436,7 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	/**
-	 * Used in the main bluetooth fragment to receive on signal strength from SignalReaderService.
+	 * Used in the main bluetooth fragment to receive signal strength from SignalReaderService.
 	 */
 	public class SignalStrengthUpdateReceiver extends BroadcastReceiver {
 		@Override
@@ -410,15 +450,6 @@ public class BluetoothFragment extends Fragment implements
 				//Update signal strength
 				int newSignalStrength = intent.getIntExtra("message", Integer.MIN_VALUE);
 				updateSignalStrength(newSignalStrength);
-			}
-
-			//When these broadcast are received, we want to enable the UI
-			else if(action.equals(SignalReaderService.BT_ENABLE_BUTTON_ACTION)) {
-				Log.d(MainActivity.DEBUG_TAG, "Received BT_ENABLE_BUTTON intent.");
-				enableUiElement(
-						serviceToggle,
-						deviceChooser,
-						refreshIntervalSpinner);
 			}
 		}
 	}

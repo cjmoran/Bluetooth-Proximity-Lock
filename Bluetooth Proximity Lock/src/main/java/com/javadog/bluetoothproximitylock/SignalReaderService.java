@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.AsyncTask;
+import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -35,8 +36,8 @@ import android.widget.Toast;
  */
 public class SignalReaderService extends Service {
 	public final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
-	public final static String BT_ENABLE_BUTTON_ACTION = "com.javadog.bluetoothproximitylock.BT_ENABLE_BUTTON";
 
+	private final IBinder binder = new ServiceBinder();
 	private static long refreshIntervalMs;
 	private static boolean iAmRunning;
 
@@ -47,23 +48,23 @@ public class SignalReaderService extends Service {
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
 
-		//Refresh interval should have been passed in the intent
-		refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2001);
+		//onStartCommand can be run multiple times by calls to startService
+		if(!isServiceRunning()) {
+			//Refresh interval should have been passed in the intent
+			refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2001);
 
-		loader = new SignalStrengthLoader();
-		loader.execute();
+			loader = new SignalStrengthLoader();
+			loader.execute();
 
-		iAmRunning = true;
+			iAmRunning = true;
 
-		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service started.");
+			Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service started.");
 
-		//Service has started now, so we can enable the fragment button.
-		enableFragmentButton();
-
-		//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
-		btStateReceiver = new BluetoothStateReceiver(loader);
-		IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-		registerReceiver(btStateReceiver, filter);
+			//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
+			btStateReceiver = new BluetoothStateReceiver(loader);
+			IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+			registerReceiver(btStateReceiver, filter);
+		}
 
 		//Keep the service in a "started" state even if killed for memory
 		return START_STICKY;
@@ -79,49 +80,18 @@ public class SignalReaderService extends Service {
 		}
 
 		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service stopped.");
-
 		iAmRunning = false;
-
-		//The service has finished, so let's enable the BTFragment's button again
-		enableFragmentButton();
 
 		unregisterReceiver(btStateReceiver);
 	}
 
-	/**
-	 * Notifies the fragment that it can enable its button again.
-	 */
-	private void enableFragmentButton() {
-		sendLocalBroadcast(getApplicationContext(), BT_ENABLE_BUTTON_ACTION, null);
-	}
-
 	@Override
 	public IBinder onBind(Intent intent) {
-		return null;
+		return binder;
 	}
 
 	public static boolean isServiceRunning() {
 		return iAmRunning;
-	}
-
-	/**
-	 * Sends the specified String using the LocalBroadcastManager interface.
-	 * Retrieve the message using intent.getStringExtra("message").
-	 *
-	 * @param context The application context.
-	 * @param action The action to specify with the Intent.
-	 * @param message The message to send.
-	 */
-	protected static void sendLocalBroadcast(Context context, String action, String message) {
-		LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(context);
-		Intent i = new Intent(action);
-		if(message != null) {
-			i.putExtra("message", message);
-		}
-
-		broadcastManager.sendBroadcast(i);
-
-		Log.d(MainActivity.DEBUG_TAG, "Sent local broadcast with action: " + action);
 	}
 
 	/**
@@ -230,12 +200,20 @@ public class SignalReaderService extends Service {
 		public void onReceive(Context context, Intent intent) {
 			if(intent.getAction().equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
 				switch(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-					case BluetoothAdapter.STATE_TURNING_OFF:
 					case BluetoothAdapter.STATE_OFF:
 						loaderRef.plzStop();
 						break;
 				}
 			}
+		}
+	}
+
+	/**
+	 * Allows the BluetoothFragment to bind to this Service and access its public methods.
+	 */
+	public class ServiceBinder extends Binder {
+		SignalReaderService getService() {
+			return SignalReaderService.this;
 		}
 	}
 }
