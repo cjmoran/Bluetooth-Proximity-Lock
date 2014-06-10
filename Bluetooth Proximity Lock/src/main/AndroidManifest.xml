@@ -21,7 +21,9 @@
             </intent-filter>
         </activity>
 	    
-	    <service android:name=".SignalReaderService"/>
+	    <service
+		    android:name=".SignalReaderService"
+		    android:label="Bluetooth Locking Service"/>
 	    
 	    <receiver android:name="com.javadog.bluetoothproximitylock.DeviceLockManager"
 	              android:label="@string/app_name"

@@ -33,6 +33,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -68,6 +69,7 @@ public class BluetoothFragment extends Fragment implements
 	protected static Spinner refreshIntervalSpinner;
 	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
 	protected boolean serviceBound;
+	protected SignalReaderService serviceRef;
 	protected static SharedPreferences userPrefs;
 	protected BluetoothStateReceiver btStateReceiver;
 
@@ -90,18 +92,19 @@ public class BluetoothFragment extends Fragment implements
 	 */
 	private void initialize() {
 		//Get a reference to the user preferences editor
-		userPrefs = getActivity().getPreferences(Context.MODE_PRIVATE);
+		userPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity().getApplicationContext());
 
-		//Get a fresh reference to our views
+		//Get fresh references to our views
 		serviceToggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
 		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
+		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
 		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances); //TODO: This doesn't actually do anything yet.
 		refreshIntervalSpinner = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
 
 		//Get a reference to the local broadcast manager, and specify which intent actions we want to listen for
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
 		IntentFilter filter = new IntentFilter();
-		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
+		filter.addAction(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE);
 
 		//Instantiate the ssReceiver if it's not already, then register it with the broadcast manager
 		if(ssReceiver == null) {
@@ -117,8 +120,6 @@ public class BluetoothFragment extends Fragment implements
 			adminDialogFragment.show(getFragmentManager(), "needsAdmin");
 		}
 
-		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
-
 		populateBtDevices();
 
 		//Start the device chooser in a disabled state if Bluetooth is disabled
@@ -128,30 +129,31 @@ public class BluetoothFragment extends Fragment implements
 			deviceChooser.setEnabled(false);
 		}
 
-		bindToService();
-
 		//Register a listener with the system to get updates about changes to Bluetooth state
 		if(btStateReceiver == null) {
 			btStateReceiver = new BluetoothStateReceiver();
 		}
 		IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 		getActivity().registerReceiver(btStateReceiver, btFilter);
+
+		//This shit right here.
+		bindToService();
 	}
 
 	/**
-	 * Binds to the service.
+	 * Binds to the service if it's running. If it's not, then we'll still get a callback when it's started.
 	 */
 	private void bindToService() {
-		if(SignalReaderService.isServiceRunning()) {
-			Intent bindService = new Intent(getActivity(), SignalReaderService.class);
-			getActivity().bindService(bindService, serviceConnection, Context.BIND_AUTO_CREATE);
-		}
+		Intent bindService = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
+
+		//Passing 0 as the flag will prevent the service from being started if it hasn't been already.
+		getActivity().bindService(bindService, serviceConnection, 0);
 	}
 
 	/**
 	 * Unbinds from the service.
 	 */
-	private void unbindFromService() {
+	public void unbindFromService() {
 		if(serviceBound) {
 			getActivity().unbindService(serviceConnection);
 		}
@@ -163,6 +165,7 @@ public class BluetoothFragment extends Fragment implements
 	private ServiceConnection serviceConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+			serviceRef = ((SignalReaderService.ServiceBinder) iBinder).getService();
 			serviceBound = true;
 			updateBtServiceUI();
 
@@ -230,22 +233,6 @@ public class BluetoothFragment extends Fragment implements
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
 		manager.unregisterReceiver(ssReceiver);
 
-		//Save user preferences
-		SharedPreferences.Editor editor = userPrefs.edit();
-
-		//Save chosen device by bluetooth address; order might change
-		int selectedItem = deviceChooser.getSelectedItemPosition();
-		if(selectedItem != Spinner.INVALID_POSITION) {
-			editor.putString(PREF_BT_DEVICE_ADDRESS,
-							devicesSet.toArray(new BluetoothDevice[devicesSet.size()])[selectedItem].getAddress());
-		}
-		editor.putInt(PREF_LOCK_DISTANCE, lockDistance.getSelectedItemPosition());
-		editor.putInt(PREF_REFRESH_INTERVAL, refreshIntervalSpinner.getSelectedItemPosition());
-		editor.apply();
-
-		//Unbind from SignalReaderService
-		unbindFromService();
-
 		//Unregister the BluetoothStateReceiver
 		getActivity().unregisterReceiver(btStateReceiver);
 	}
@@ -298,7 +285,9 @@ public class BluetoothFragment extends Fragment implements
 				lockDistance,
 				refreshIntervalSpinner);
 
-		getActivity().stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
+		getActivity().getApplicationContext().
+				stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
+		unbindFromService();
 	}
 
 	/**
@@ -314,13 +303,7 @@ public class BluetoothFragment extends Fragment implements
 					refreshIntervalSpinner);
 
 			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
-
-			//Be sure to pass the device address and refresh interval with the intent
-			startIntent.putExtra("btDeviceAddress", BluetoothManager.getSelectedDevice().getAddress());
-			startIntent.putExtra("btRefreshInterval", refreshInterval);
-
-			getActivity().startService(startIntent);
-			bindToService();
+			getActivity().getApplicationContext().startService(startIntent);
 		} else {
 			Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 			startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
@@ -352,49 +335,42 @@ public class BluetoothFragment extends Fragment implements
 	 * @param position The position of the selected item in the spinner.
 	 * @return The {@link java.lang.Long} millisecond value the passed position represents.
 	 */
-	private long interpretRefreshSpinner(int position) {
+	public static long interpretRefreshSpinner(int position) {
 		return new long[]{1000, 2000, 5000}[position];
 	}
 
 	@Override
 	public void onItemSelected(AdapterView<?> adapterView, View view, int position, long rowId) {
-		boolean wasRunning;
+		SharedPreferences.Editor prefsEditor = userPrefs.edit();
 		switch(adapterView.getId()) {
 			case R.id.bt_device_chooser:
-				//First stop the service if it's running
-				if(wasRunning = serviceBound) {
-					stopBtService();
-				}
-
-				//Now feed the selected device's address to BluetoothManager
+				//Feed the selected device's address to BluetoothManager
 				Set<BluetoothDevice> devicesSet = BluetoothManager.getAllBtDevices();
 				BluetoothDevice chosenDevice = (BluetoothDevice)devicesSet.toArray()[position];
 				BluetoothManager.setSelectedDevice(chosenDevice);
 
-				//And restart the service if it had been running
-				if(wasRunning) {
-					startBtService();
-				}
+				//Update saved preference
+				prefsEditor.putString(BluetoothFragment.PREF_BT_DEVICE_ADDRESS, chosenDevice.getAddress());
 				break;
 
 			case R.id.bt_lock_distances:
-
+				//Update saved preference
+				prefsEditor.putInt(PREF_LOCK_DISTANCE, lockDistance.getSelectedItemPosition());
 				break;
 
 			case R.id.bt_refresh_interval:
-				//Stop the service if it was running
-				if(wasRunning = serviceBound) {
-					stopBtService();
-				}
-
-				//Now save the spinner value into our instance variable here, and restart the service
+				//Save the spinner value into our instance variable here
 				refreshInterval = interpretRefreshSpinner(refreshIntervalSpinner.getSelectedItemPosition());
 
-				//And restart the service if it had been running
-				if(wasRunning) {
-					startBtService();
-				}
+				//Update saved preference
+				prefsEditor.putInt(PREF_REFRESH_INTERVAL, refreshIntervalSpinner.getSelectedItemPosition());
 				break;
+		}
+		prefsEditor.apply();
+
+		//Call startService again (if the service is running) in order to update its settings based on new prefs.
+		if(serviceBound) {
+			startBtService();
 		}
 	}
 
@@ -444,12 +420,15 @@ public class BluetoothFragment extends Fragment implements
 			String action = intent.getAction();
 
 			//If the broadcast was fired with this action, we know to update the UI
-			if(action.equals(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION)) {
+			if(action.equals(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE)) {
 				Log.d(MainActivity.DEBUG_TAG, "Local BT signal broadcast received.");
 
 				//Update signal strength
 				int newSignalStrength = intent.getIntExtra("message", Integer.MIN_VALUE);
 				updateSignalStrength(newSignalStrength);
+			} else if(action.equals(SignalReaderService.ACTION_UNBIND_SERVICE)) {
+				//We need to unbind from the service so it can shut down
+				unbindFromService();
 			}
 		}
 	}

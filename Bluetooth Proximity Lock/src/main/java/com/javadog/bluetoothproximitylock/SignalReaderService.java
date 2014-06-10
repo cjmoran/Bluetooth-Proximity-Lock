@@ -22,9 +22,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
@@ -35,11 +37,12 @@ import android.widget.Toast;
  * TODO: Not sure if service handles BT state changes gracefully.
  */
 public class SignalReaderService extends Service {
-	public final static String BT_SIGNAL_STRENGTH_ACTION = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
+	public final static String ACTION_SIGNAL_STRENGTH_UPDATE = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
+	public final static String ACTION_UNBIND_SERVICE = "com.javadog.bluetoothproximitylock.UNBIND_PLZ";
 
 	private final IBinder binder = new ServiceBinder();
 	private static long refreshIntervalMs;
-	private static boolean iAmRunning;
+	private boolean iAmRunning;
 
 	private SignalStrengthLoader loader;
 	private BluetoothStateReceiver btStateReceiver;
@@ -48,16 +51,16 @@ public class SignalReaderService extends Service {
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
 
+		//Refresh interval should be specified in Preferences
+		SharedPreferences userPrefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+		refreshIntervalMs = BluetoothFragment.interpretRefreshSpinner(
+				userPrefs.getInt(BluetoothFragment.PREF_REFRESH_INTERVAL, 1));
+
+		loader = new SignalStrengthLoader();
+		loader.execute();
+
 		//onStartCommand can be run multiple times by calls to startService
 		if(!isServiceRunning()) {
-			//Refresh interval should have been passed in the intent
-			refreshIntervalMs = intent.getLongExtra("btRefreshInterval", 2001);
-
-			loader = new SignalStrengthLoader();
-			loader.execute();
-
-			iAmRunning = true;
-
 			Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service started.");
 
 			//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
@@ -65,6 +68,8 @@ public class SignalReaderService extends Service {
 			IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 			registerReceiver(btStateReceiver, filter);
 		}
+
+		iAmRunning = true;
 
 		//Keep the service in a "started" state even if killed for memory
 		return START_STICKY;
@@ -83,6 +88,9 @@ public class SignalReaderService extends Service {
 		iAmRunning = false;
 
 		unregisterReceiver(btStateReceiver);
+
+		//Tell the BTFragment to unbind this service so it can be destroyed
+		sendLocalBroadcast(getApplicationContext(), ACTION_UNBIND_SERVICE, 1);
 	}
 
 	@Override
@@ -90,7 +98,7 @@ public class SignalReaderService extends Service {
 		return binder;
 	}
 
-	public static boolean isServiceRunning() {
+	public boolean isServiceRunning() {
 		return iAmRunning;
 	}
 
@@ -142,21 +150,21 @@ public class SignalReaderService extends Service {
 				//Read remote RSSI. If we have a request for it out already, don't request again.
 				if(bluetoothManager.canReadRssi()) {
 					bluetoothManager.getBtGatt().readRemoteRssi();
+
+					//Get signal strength from the BTManager
+					signalStrength = bluetoothManager.getSignalStrength();
+
+					//Post the new value as "progress"
+					publishProgress(signalStrength);
+
+					Log.d(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
+					Log.d(MainActivity.DEBUG_TAG, "Using device: " + BluetoothManager.getPairedDevice().getName());
+					Log.d(MainActivity.DEBUG_TAG, "\twith address: " + BluetoothManager.getPairedDevice().getAddress());
+					Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
+
+					//Decide whether the device should be locked/unlocked
+					deviceLockManager.handleDeviceLock(signalStrength);
 				}
-
-				//Get signal strength from the BTManager
-				signalStrength = bluetoothManager.getSignalStrength();
-
-				//Post the new value as "progress"
-				publishProgress(signalStrength);
-
-				Log.d(MainActivity.DEBUG_TAG, "Read signal strength: " + signalStrength);
-				Log.d(MainActivity.DEBUG_TAG, "Using device: " + BluetoothManager.getPairedDevice().getName());
-				Log.d(MainActivity.DEBUG_TAG, "\twith address: " + BluetoothManager.getPairedDevice().getAddress());
-				Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
-
-				//Decide whether the device should be locked/unlocked
-				deviceLockManager.handleDeviceLock(signalStrength);
 
 				//Sleep this thread for the provided time
 				try {
@@ -176,7 +184,7 @@ public class SignalReaderService extends Service {
 		protected void onProgressUpdate(Integer... values) {
 			int updatedSignalStrength = values[0];
 
-			sendLocalBroadcast(getApplicationContext(), BT_SIGNAL_STRENGTH_ACTION, updatedSignalStrength);
+			sendLocalBroadcast(getApplicationContext(), ACTION_SIGNAL_STRENGTH_UPDATE, updatedSignalStrength);
 		}
 
 		@Override

@@ -245,10 +245,10 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getInstrumentation().getTargetContext());
 		IntentFilter filter = new IntentFilter();
-		filter.addAction(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
+		filter.addAction(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE);
 		manager.registerReceiver(receiver.getReceiver(), filter);
 
-		Intent testIntent = new Intent(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION);
+		Intent testIntent = new Intent(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE);
 		testIntent.putExtra("message", 6969);
 		manager.sendBroadcast(testIntent);
 	}
@@ -257,7 +257,7 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 		private BluetoothFragment.SignalStrengthUpdateReceiver receiver = new SignalStrengthUpdateReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				if(intent.getAction().equals(SignalReaderService.BT_SIGNAL_STRENGTH_ACTION)) {
+				if(intent.getAction().equals(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE)) {
 					assertEquals("Test whether signal strength message was received successfully", 6969,
 							intent.getIntExtra("message", 0));
 				}
