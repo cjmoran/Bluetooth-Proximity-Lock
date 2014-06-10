@@ -7,7 +7,7 @@ This app will be published on Google Play for a low price when it reaches a more
 
 Planned features:
 
-- [x] Lock device when bluetooth peripheral leaves user-defined radius (approximate).
+- [ ] Lock device when bluetooth peripheral leaves user-defined radius (approximate).
 - [ ] Keep device unlocked when it is connected to a user-specified "trusted" WiFi network.
 - [ ] Save battery by only running the service right as the device screen is woken up.
 - [ ] If the above is disabled, user can enable immediate locking when BT device leaves defined range.
