@@ -69,7 +69,6 @@ public class BluetoothFragment extends Fragment implements
 	protected static Spinner refreshIntervalSpinner;
 	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
 	protected boolean serviceBound;
-	protected SignalReaderService serviceRef;
 	protected static SharedPreferences userPrefs;
 	protected BluetoothStateReceiver btStateReceiver;
 
@@ -156,6 +155,7 @@ public class BluetoothFragment extends Fragment implements
 	public void unbindFromService() {
 		if(serviceBound) {
 			getActivity().unbindService(serviceConnection);
+			serviceBound = false;
 		}
 	}
 
@@ -165,7 +165,6 @@ public class BluetoothFragment extends Fragment implements
 	private ServiceConnection serviceConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-			serviceRef = ((SignalReaderService.ServiceBinder) iBinder).getService();
 			serviceBound = true;
 			updateBtServiceUI();
 
@@ -179,14 +178,7 @@ public class BluetoothFragment extends Fragment implements
 
 		@Override
 		public void onServiceDisconnected(ComponentName componentName) {
-			serviceBound = false;
-
-			//Enable UI elements again
-			enableUiElement(
-					serviceToggle,
-					deviceChooser,
-					lockDistance,
-					refreshIntervalSpinner);
+			//This should never be called because our service resides in the same process.
 		}
 	};
 
@@ -235,6 +227,8 @@ public class BluetoothFragment extends Fragment implements
 
 		//Unregister the BluetoothStateReceiver
 		getActivity().unregisterReceiver(btStateReceiver);
+
+		unbindFromService();
 	}
 
 	private void setupClickListeners() {
@@ -278,13 +272,6 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	protected void stopBtService() {
-		//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled when binding.
-		disableUiElement(
-				serviceToggle,
-				deviceChooser,
-				lockDistance,
-				refreshIntervalSpinner);
-
 		getActivity().getApplicationContext().
 				stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
 		unbindFromService();

@@ -24,7 +24,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -40,7 +39,7 @@ public class SignalReaderService extends Service {
 	public final static String ACTION_SIGNAL_STRENGTH_UPDATE = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
 	public final static String ACTION_UNBIND_SERVICE = "com.javadog.bluetoothproximitylock.UNBIND_PLZ";
 
-	private final IBinder binder = new ServiceBinder();
+	private final IBinder binder = new ServiceBinder<SignalReaderService>(this);
 	private static long refreshIntervalMs;
 	private boolean iAmRunning;
 
@@ -213,15 +212,6 @@ public class SignalReaderService extends Service {
 						break;
 				}
 			}
-		}
-	}
-
-	/**
-	 * Allows the BluetoothFragment to bind to this Service and access its public methods.
-	 */
-	public class ServiceBinder extends Binder {
-		SignalReaderService getService() {
-			return SignalReaderService.this;
 		}
 	}
 }
