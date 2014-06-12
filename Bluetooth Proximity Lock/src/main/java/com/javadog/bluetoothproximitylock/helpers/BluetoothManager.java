@@ -21,8 +21,9 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.javadog.bluetoothproximitylock.MainActivity;
@@ -46,14 +47,21 @@ public class BluetoothManager extends BluetoothGattCallback {
 	/**
 	 * @param context Application context.
 	 */
-	public BluetoothManager(Context context) {
+	public BluetoothManager(final Context context) {
 		//Refresh all bluetooth devices
 		refreshBtDevices();
 
 		rssiRequested = false;
 
-		BluetoothDevice device = getPairedDevice();
-		btGatt = device.connectGatt(context, false, this);
+		final BluetoothDevice device = getPairedDevice();
+
+		//Samsung devices require connectGatt to be run on the UI thread...
+		new Handler(Looper.getMainLooper()).post(new Runnable() {
+			@Override
+			public void run() {
+				btGatt = device.connectGatt(context, false, BluetoothManager.this);
+			}
+		});
 	}
 
 	/**

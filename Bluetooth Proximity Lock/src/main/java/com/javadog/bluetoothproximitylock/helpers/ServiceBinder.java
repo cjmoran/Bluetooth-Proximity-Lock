@@ -20,7 +20,7 @@ public class ServiceBinder<T> extends Binder {
 		weakService = new WeakReference<T>(service);
 	}
 
-	T getService() {
+	public T getService() {
 		return weakService.get();
 	}
 }

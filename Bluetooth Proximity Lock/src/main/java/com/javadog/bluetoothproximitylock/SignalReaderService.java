@@ -67,7 +67,7 @@ public class SignalReaderService extends Service {
 			Log.i(MainActivity.DEBUG_TAG, "SignalReaderService started.");
 
 			//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
-			btStateReceiver = new BluetoothStateReceiver(loader);
+			btStateReceiver = new BluetoothStateReceiver();
 			IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 			registerReceiver(btStateReceiver, filter);
 		}
@@ -82,20 +82,10 @@ public class SignalReaderService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 
-		//Kill the AsyncTask
-		if(loader != null) {
-			loader.plzStop();
-		}
+		iAmRunning = false;
+		stopService();
 
 		Log.i(MainActivity.DEBUG_TAG, "SignalReaderService stopped.");
-		iAmRunning = false;
-
-		unregisterReceiver(btStateReceiver);
-
-		//Tell the BTFragment to unbind this service so it can be destroyed
-		sendLocalBroadcast(getApplicationContext(), ACTION_UNBIND_SERVICE, 1);
-
-		Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
 	}
 
 	@Override
@@ -105,6 +95,27 @@ public class SignalReaderService extends Service {
 
 	public boolean isServiceRunning() {
 		return iAmRunning;
+	}
+
+	protected void stopService() {
+		//Kill the AsyncTask
+		if(loader != null) {
+			loader.plzStop();
+		}
+
+		iAmRunning = false;
+
+		unregisterReceiver(btStateReceiver);
+
+		//Tell the BTFragment to unbind this service so it can be destroyed
+		sendLocalBroadcast(getApplicationContext(), ACTION_UNBIND_SERVICE, 1);
+
+		//If this was called directly, it will call stopSelf. Otherwise it was called by onDestroy, so no need.
+		if(iAmRunning) {
+			stopSelf();
+		}
+
+		Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
 	}
 
 	/**
@@ -152,7 +163,8 @@ public class SignalReaderService extends Service {
 		protected Void doInBackground(Void... voids) {
 			while(!plzStop) {
 				//Read remote RSSI. If we have a request for it out already, don't request again.
-				if(bluetoothManager.canReadRssi()) {
+				//The btGatt is null checked because it's instantiated on the UI thread. Thanks Samsung.
+				if(bluetoothManager.getBtGatt() != null && bluetoothManager.canReadRssi()) {
 					bluetoothManager.getBtGatt().readRemoteRssi();
 
 					//Get signal strength from the BTManager
@@ -201,18 +213,12 @@ public class SignalReaderService extends Service {
 	 * Subscribes to BT status updates and kills the SignalStrengthLoader if BT is disabled.
 	 */
 	private class BluetoothStateReceiver extends BroadcastReceiver {
-		private SignalStrengthLoader loaderRef;
-
-		public BluetoothStateReceiver(SignalStrengthLoader loaderReference) {
-			loaderRef = loaderReference;
-		}
-
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			if(intent.getAction().equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
 				switch(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
 					case BluetoothAdapter.STATE_OFF:
-						loaderRef.plzStop();
+						stopService();
 						break;
 				}
 			}

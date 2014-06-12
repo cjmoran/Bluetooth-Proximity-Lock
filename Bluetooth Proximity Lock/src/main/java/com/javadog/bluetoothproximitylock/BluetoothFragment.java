@@ -71,10 +71,11 @@ public class BluetoothFragment extends Fragment implements
 	protected Set<BluetoothDevice> devicesSet;
 	protected static Spinner lockDistance;
 	protected static Spinner refreshIntervalSpinner;
-	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical. Reconsider this...
+	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical; reconsider this.
 	protected boolean serviceBound;
 	protected static SharedPreferences userPrefs;
 	protected BluetoothStateReceiver btStateReceiver;
+	protected ServiceConnection serviceConnection;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -141,6 +142,22 @@ public class BluetoothFragment extends Fragment implements
 		}
 		IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 		getActivity().registerReceiver(btStateReceiver, btFilter);
+
+		/**
+		 * Will attach the Activity to the Service as soon as the service is started.
+		 */
+		serviceConnection = new ServiceConnection() {
+			@Override
+			public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+				serviceBound = true;
+				updateBtServiceUI();
+			}
+
+			@Override
+			public void onServiceDisconnected(ComponentName componentName) {
+				//This should never be called because our service resides in the same process.
+			}
+		};
 	}
 
 	/**
@@ -157,27 +174,12 @@ public class BluetoothFragment extends Fragment implements
 	 * Unbinds from the service.
 	 */
 	public void unbindFromService() {
-		if(serviceBound) {
+		if(getActivity() != null && serviceConnection != null) {
 			getActivity().unbindService(serviceConnection);
-			serviceBound = false;
 		}
+		serviceBound = false;
+		updateBtServiceUI();
 	}
-
-	/**
-	 * Attempts to bind to the SignalReaderService, if it's running. Also handles disconnect.
-	 */
-	private ServiceConnection serviceConnection = new ServiceConnection() {
-		@Override
-		public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-			serviceBound = true;
-			updateBtServiceUI();
-		}
-
-		@Override
-		public void onServiceDisconnected(ComponentName componentName) {
-			//This should never be called because our service resides in the same process.
-		}
-	};
 
 	protected void populateBtDevices() {
 		//Get a Set of all paired bluetooth devices, convert to array
@@ -275,12 +277,15 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	protected void stopBtService() {
+		unbindFromService();
 		getActivity().getApplicationContext().
 				stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
 	}
 
 	/**
 	 * Handles starting of the service if all necessary conditions are met.
+	 *
+	 * TODO: Dialog appears twice on startup if BT is disabled.
 	 */
 	protected void startBtService() {
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
