@@ -199,7 +199,6 @@ public class SignalReaderService extends Service {
 		@Override
 		protected void onProgressUpdate(Integer... values) {
 			int updatedSignalStrength = values[0];
-
 			sendLocalBroadcast(getApplicationContext(), ACTION_SIGNAL_STRENGTH_UPDATE, updatedSignalStrength);
 		}
 

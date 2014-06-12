@@ -174,11 +174,11 @@ public class BluetoothFragment extends Fragment implements
 	 * Unbinds from the service.
 	 */
 	public void unbindFromService() {
-		if(getActivity() != null && serviceConnection != null) {
+		if(getActivity() != null && serviceBound) {
 			getActivity().unbindService(serviceConnection);
+			serviceBound = false;
+			updateBtServiceUI();
 		}
-		serviceBound = false;
-		updateBtServiceUI();
 	}
 
 	protected void populateBtDevices() {

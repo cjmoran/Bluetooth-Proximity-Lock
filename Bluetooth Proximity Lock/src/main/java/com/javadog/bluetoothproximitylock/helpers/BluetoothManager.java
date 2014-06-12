@@ -35,7 +35,7 @@ import java.util.Set;
  * and perform some other related tasks.
  */
 public class BluetoothManager extends BluetoothGattCallback {
-	private int signalStrength;
+	private static  int signalStrength;
 	private static boolean rssiRequested;
 	private static BluetoothGatt btGatt;
 
