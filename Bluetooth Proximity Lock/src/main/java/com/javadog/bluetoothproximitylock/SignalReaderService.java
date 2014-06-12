@@ -30,6 +30,10 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.javadog.bluetoothproximitylock.helpers.BluetoothManager;
+import com.javadog.bluetoothproximitylock.helpers.DeviceLockManager;
+import com.javadog.bluetoothproximitylock.helpers.ServiceBinder;
+
 /**
  * This Service runs a background thread which periodically updates the signal strength.
  *
@@ -39,7 +43,7 @@ public class SignalReaderService extends Service {
 	public final static String ACTION_SIGNAL_STRENGTH_UPDATE = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
 	public final static String ACTION_UNBIND_SERVICE = "com.javadog.bluetoothproximitylock.UNBIND_PLZ";
 
-	private final IBinder binder = new ServiceBinder<SignalReaderService>(this);
+	private final IBinder binder = new ServiceBinder<>(this);
 	private static long refreshIntervalMs;
 	private boolean iAmRunning;
 
@@ -60,7 +64,7 @@ public class SignalReaderService extends Service {
 
 		//onStartCommand can be run multiple times by calls to startService
 		if(!isServiceRunning()) {
-			Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service started.");
+			Log.i(MainActivity.DEBUG_TAG, "SignalReaderService started.");
 
 			//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
 			btStateReceiver = new BluetoothStateReceiver(loader);
@@ -83,13 +87,15 @@ public class SignalReaderService extends Service {
 			loader.plzStop();
 		}
 
-		Log.i(MainActivity.DEBUG_TAG, "Bluetooth proximity service stopped.");
+		Log.i(MainActivity.DEBUG_TAG, "SignalReaderService stopped.");
 		iAmRunning = false;
 
 		unregisterReceiver(btStateReceiver);
 
 		//Tell the BTFragment to unbind this service so it can be destroyed
 		sendLocalBroadcast(getApplicationContext(), ACTION_UNBIND_SERVICE, 1);
+
+		Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
 	}
 
 	@Override
@@ -139,7 +145,6 @@ public class SignalReaderService extends Service {
 
 		@Override
 		protected void onPreExecute() {
-			Toast.makeText(getApplicationContext(), "Bluetooth auto-lock enabled", Toast.LENGTH_SHORT).show();
 			Log.d(MainActivity.DEBUG_TAG, "BT signal strength loader started");
 		}
 
@@ -188,7 +193,6 @@ public class SignalReaderService extends Service {
 
 		@Override
 		protected void onPostExecute(Void aVoid) {
-			Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
 			Log.d(MainActivity.DEBUG_TAG, "BT signal strength loader stopped");
 		}
 	}

@@ -19,7 +19,7 @@ package com.javadog.bluetoothproximitylock.test;
 import junit.framework.TestCase;
 
 /**
- * Unit tests for {@link com.javadog.bluetoothproximitylock.DeviceLockManager}
+ * Unit tests for {@link com.javadog.bluetoothproximitylock.helpers.DeviceLockManager}
  */
 public class DeviceLockManagerTest extends TestCase {
 	@Override

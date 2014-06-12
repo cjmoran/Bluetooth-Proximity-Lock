@@ -14,9 +14,11 @@
 	limitations under the License.
  */
 
-package com.javadog.bluetoothproximitylock;
+package com.javadog.bluetoothproximitylock.helpers;
 
 import android.util.Log;
+
+import com.javadog.bluetoothproximitylock.MainActivity;
 
 import java.util.Collection;
 import java.util.LinkedList;

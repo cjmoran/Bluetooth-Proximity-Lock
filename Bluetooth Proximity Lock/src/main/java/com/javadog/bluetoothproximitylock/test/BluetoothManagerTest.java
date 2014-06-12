@@ -19,14 +19,14 @@ package com.javadog.bluetoothproximitylock.test;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
-import com.javadog.bluetoothproximitylock.BluetoothManager;
+import com.javadog.bluetoothproximitylock.helpers.BluetoothManager;
 
 import junit.framework.TestCase;
 
 import java.util.Set;
 
 /**
- * Unit tests for {@link com.javadog.bluetoothproximitylock.BluetoothManager}
+ * Unit tests for {@link com.javadog.bluetoothproximitylock.helpers.BluetoothManager}
  */
 public class BluetoothManagerTest extends TestCase {
 	@Override
@@ -35,8 +35,8 @@ public class BluetoothManagerTest extends TestCase {
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothManager#getPairedDevice()} and
-	 * {@link com.javadog.bluetoothproximitylock.BluetoothManager#getPairedDevice(String)}.
+	 * Tests {@link com.javadog.bluetoothproximitylock.helpers.BluetoothManager#getPairedDevice()} and
+	 * {@link com.javadog.bluetoothproximitylock.helpers.BluetoothManager#getPairedDevice(String)}.
 	 */
 	public void testGetPairedDevice() {
 		Set<BluetoothDevice> bondedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();

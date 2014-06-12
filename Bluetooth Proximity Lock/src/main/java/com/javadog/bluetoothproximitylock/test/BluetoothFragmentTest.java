@@ -237,7 +237,7 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment.SignalStrengthUpdateReceiver#onReceive(android.content.Context, android.content.Intent)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.BluetoothFragment.LocalBroadcastReceiver#onReceive(android.content.Context, android.content.Intent)}
 	 */
 	public void testOnReceive() {
 		ReceiverTest receiver = new ReceiverTest();
@@ -254,7 +254,7 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 	}
 
 	public static class ReceiverTest extends BluetoothFragment {
-		private BluetoothFragment.SignalStrengthUpdateReceiver receiver = new SignalStrengthUpdateReceiver() {
+		private LocalBroadcastReceiver receiver = new LocalBroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				if(intent.getAction().equals(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE)) {
@@ -264,7 +264,7 @@ public class BluetoothFragmentTest extends ActivityInstrumentationTestCase2<Plac
 			}
 		};
 
-		public BluetoothFragment.SignalStrengthUpdateReceiver getReceiver() {
+		public LocalBroadcastReceiver getReceiver() {
 			return receiver;
 		}
 		@Override

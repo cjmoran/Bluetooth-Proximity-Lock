@@ -14,13 +14,16 @@
 	limitations under the License.
  */
 
-package com.javadog.bluetoothproximitylock;
+package com.javadog.bluetoothproximitylock.helpers;
 
 import android.app.admin.DeviceAdminReceiver;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+
+import com.javadog.bluetoothproximitylock.MainActivity;
+import com.javadog.bluetoothproximitylock.helpers.CircularQueue;
 
 /**
  * Handles locking/unlocking of the device when conditions are met.

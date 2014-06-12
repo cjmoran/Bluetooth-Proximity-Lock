@@ -14,15 +14,18 @@
 	limitations under the License.
  */
 
-package com.javadog.bluetoothproximitylock;
+package com.javadog.bluetoothproximitylock.helpers;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.util.Log;
+
+import com.javadog.bluetoothproximitylock.MainActivity;
 
 import java.util.Set;
 
@@ -32,7 +35,7 @@ import java.util.Set;
  */
 public class BluetoothManager extends BluetoothGattCallback {
 	private int signalStrength;
-	private boolean rssiRequested;
+	private static boolean rssiRequested;
 	private static BluetoothGatt btGatt;
 
 	private static BluetoothDevice selectedDevice;
@@ -55,11 +58,12 @@ public class BluetoothManager extends BluetoothGattCallback {
 
 	/**
 	 * This method simply returns the first bluetooth device the system returns, unless "selectedDevice" is set.
-	 * If it is not set, it will set it to the system-selected device.
-	 * To request a particular device by BT address, use:
-	 * {@link com.javadog.bluetoothproximitylock.BluetoothManager#getPairedDevice(String)}.
 	 *
-	 * @return The first bluetooth device the system feels like returning.
+	 * If selectedDevice is not set, it will set it to the system-selected device.
+	 * To request a particular device by BT address, use:
+	 * {@link BluetoothManager#getPairedDevice(String)}.
+	 *
+	 * @return The first bluetooth device the system feels like returning, or the selected device (if set).
 	 */
 	public static BluetoothDevice getPairedDevice() {
 		return selectedDevice == null ?
@@ -112,10 +116,6 @@ public class BluetoothManager extends BluetoothGattCallback {
 		allBtDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
 	}
 
-	public static BluetoothDevice getSelectedDevice() {
-		return selectedDevice;
-	}
-
 	public static void setSelectedDevice(BluetoothDevice selectedDevice) {
 		BluetoothManager.selectedDevice = selectedDevice;
 	}
@@ -132,7 +132,7 @@ public class BluetoothManager extends BluetoothGattCallback {
 		return btGatt;
 	}
 
-	public synchronized boolean canReadRssi() {
+	public boolean canReadRssi() {
 		return !rssiRequested;
 	}
 }

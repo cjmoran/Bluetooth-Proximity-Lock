@@ -46,6 +46,10 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import com.javadog.bluetoothproximitylock.helpers.BetterSwitch;
+import com.javadog.bluetoothproximitylock.helpers.BluetoothManager;
+import com.javadog.bluetoothproximitylock.helpers.DeviceLockManager;
+
 import java.util.ArrayList;
 import java.util.Set;
 
@@ -60,8 +64,8 @@ public class BluetoothFragment extends Fragment implements
 	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
 	final static int REQUEST_CODE_ENABLE_BT = 873;
 
-	protected static SignalStrengthUpdateReceiver ssReceiver;
-	protected static Switch serviceToggle;
+	protected static LocalBroadcastReceiver ssReceiver;
+	protected static BetterSwitch serviceToggle;
 	protected static TextView signalStrengthView;
 	protected static Spinner deviceChooser;
 	protected Set<BluetoothDevice> devicesSet;
@@ -84,6 +88,7 @@ public class BluetoothFragment extends Fragment implements
 		initialize();
 		loadUserPreferences();
 		setupClickListeners();
+		bindToService();
 	}
 
 	/**
@@ -94,7 +99,8 @@ public class BluetoothFragment extends Fragment implements
 		userPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity().getApplicationContext());
 
 		//Get fresh references to our views
-		serviceToggle = (Switch) getView().findViewById(R.id.button_bt_service_start_stop);
+		serviceToggle = new BetterSwitch(getActivity(),
+				(Switch) getView().findViewById(R.id.button_bt_service_start_stop));
 		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
 		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
 		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances); //TODO: This doesn't actually do anything yet.
@@ -104,10 +110,11 @@ public class BluetoothFragment extends Fragment implements
 		LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE);
+		filter.addAction(SignalReaderService.ACTION_UNBIND_SERVICE);
 
 		//Instantiate the ssReceiver if it's not already, then register it with the broadcast manager
 		if(ssReceiver == null) {
-			ssReceiver = new SignalStrengthUpdateReceiver();
+			ssReceiver = new LocalBroadcastReceiver();
 		}
 		manager.registerReceiver(ssReceiver, filter);
 
@@ -134,9 +141,6 @@ public class BluetoothFragment extends Fragment implements
 		}
 		IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 		getActivity().registerReceiver(btStateReceiver, btFilter);
-
-		//This shit right here.
-		bindToService();
 	}
 
 	/**
@@ -167,13 +171,6 @@ public class BluetoothFragment extends Fragment implements
 		public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
 			serviceBound = true;
 			updateBtServiceUI();
-
-			//Enable UI elements again
-			enableUiElement(
-					serviceToggle,
-					deviceChooser,
-					lockDistance,
-					refreshIntervalSpinner);
 		}
 
 		@Override
@@ -206,6 +203,7 @@ public class BluetoothFragment extends Fragment implements
 			for(int i = 0; i < devices.length; i++) {
 				if(devices[i].getAddress().equals(userPrefs.getString(PREF_BT_DEVICE_ADDRESS, "none"))) {
 					deviceChooser.setSelection(i);
+					BluetoothManager.setSelectedDevice(devices[i]);
 					break;
 				}
 			}
@@ -263,18 +261,22 @@ public class BluetoothFragment extends Fragment implements
 		}
 	}
 
-	private void toggleBtService() {
-		if(serviceBound) {
-			stopBtService();
-		} else {
+	/**
+	 * Enables/disables the bluetooth service.
+	 *
+	 * @param on On?
+	 */
+	private void toggleBtService(boolean on) {
+		if(on) {
 			startBtService();
+		} else {
+			stopBtService();
 		}
 	}
 
 	protected void stopBtService() {
 		getActivity().getApplicationContext().
 				stopService(new Intent(getActivity().getApplicationContext(), SignalReaderService.class));
-		unbindFromService();
 	}
 
 	/**
@@ -283,11 +285,11 @@ public class BluetoothFragment extends Fragment implements
 	protected void startBtService() {
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
 			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled when binding.
-			disableUiElement(
-					serviceToggle,
-					deviceChooser,
-					lockDistance,
-					refreshIntervalSpinner);
+//			disableUiElement(
+//					serviceToggle,
+//					deviceChooser,
+//					lockDistance,
+//					refreshIntervalSpinner);
 
 			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
 			getActivity().getApplicationContext().startService(startIntent);
@@ -313,7 +315,7 @@ public class BluetoothFragment extends Fragment implements
 
 	private void updateBtServiceUI() {
 		//Update the switch
-		serviceToggle.setChecked(serviceBound);
+		serviceToggle.silentlySetChecked(serviceBound);
 	}
 
 	/**
@@ -370,7 +372,7 @@ public class BluetoothFragment extends Fragment implements
 	public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
 		switch(compoundButton.getId()) {
 			case R.id.button_bt_service_start_stop:
-				toggleBtService();
+				toggleBtService(isChecked);
 				break;
 		}
 	}
@@ -401,21 +403,24 @@ public class BluetoothFragment extends Fragment implements
 	/**
 	 * Used in the main bluetooth fragment to receive signal strength from SignalReaderService.
 	 */
-	public class SignalStrengthUpdateReceiver extends BroadcastReceiver {
+	public class LocalBroadcastReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
+			switch(intent.getAction()) {
+				case SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE:
+					//If the broadcast was fired with this action, we know to update the UI
+					Log.d(MainActivity.DEBUG_TAG, "Local BT signal broadcast received.");
 
-			//If the broadcast was fired with this action, we know to update the UI
-			if(action.equals(SignalReaderService.ACTION_SIGNAL_STRENGTH_UPDATE)) {
-				Log.d(MainActivity.DEBUG_TAG, "Local BT signal broadcast received.");
+					//Update signal strength
+					int newSignalStrength = intent.getIntExtra("message", Integer.MIN_VALUE);
+					updateSignalStrength(newSignalStrength);
+					break;
 
-				//Update signal strength
-				int newSignalStrength = intent.getIntExtra("message", Integer.MIN_VALUE);
-				updateSignalStrength(newSignalStrength);
-			} else if(action.equals(SignalReaderService.ACTION_UNBIND_SERVICE)) {
-				//We need to unbind from the service so it can shut down
-				unbindFromService();
+				case SignalReaderService.ACTION_UNBIND_SERVICE:
+					//We need to unbind from the service so it can shut down
+					Log.d(MainActivity.DEBUG_TAG, "Unbind broadcast received.");
+					unbindFromService();
+					break;
 			}
 		}
 	}

@@ -16,12 +16,12 @@
 
 package com.javadog.bluetoothproximitylock.test;
 
-import com.javadog.bluetoothproximitylock.CircularQueue;
+import com.javadog.bluetoothproximitylock.helpers.CircularQueue;
 
 import junit.framework.TestCase;
 
 /**
- * Unit tests for {@link com.javadog.bluetoothproximitylock.CircularQueue}
+ * Unit tests for {@link com.javadog.bluetoothproximitylock.helpers.CircularQueue}
  */
 @SuppressWarnings("ManualArrayToCollectionCopy")
 public class CircularQueueTest extends TestCase {
@@ -29,7 +29,7 @@ public class CircularQueueTest extends TestCase {
 	CircularQueue<Integer> testQueue;
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.CircularQueue#add(Object)}
+	 * Tests {@link com.javadog.bluetoothproximitylock.helpers.CircularQueue#add(Object)}
 	 */
 	public void testAdd() {
 		testQueue = new CircularQueue<>(5);
@@ -44,7 +44,7 @@ public class CircularQueueTest extends TestCase {
 	}
 
 	/**
-	 * Tests {@link com.javadog.bluetoothproximitylock.CircularQueue#getAverageOfElements()}
+	 * Tests {@link com.javadog.bluetoothproximitylock.helpers.CircularQueue#getAverageOfElements()}
 	 */
 	public void testGetAverageOfElements() {
 		testQueue = new CircularQueue<>(5);
