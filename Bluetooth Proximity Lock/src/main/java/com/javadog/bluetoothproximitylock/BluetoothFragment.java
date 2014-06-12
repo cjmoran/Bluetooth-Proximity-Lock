@@ -284,13 +284,6 @@ public class BluetoothFragment extends Fragment implements
 	 */
 	protected void startBtService() {
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
-			//Disable the buttons so the user can't spam them, causing crashes. They get re-enabled when binding.
-//			disableUiElement(
-//					serviceToggle,
-//					deviceChooser,
-//					lockDistance,
-//					refreshIntervalSpinner);
-
 			Intent startIntent = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
 			getActivity().getApplicationContext().startService(startIntent);
 		} else {
