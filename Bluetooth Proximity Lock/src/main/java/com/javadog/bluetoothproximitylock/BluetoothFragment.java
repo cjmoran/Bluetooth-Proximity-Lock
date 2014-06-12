@@ -323,7 +323,7 @@ public class BluetoothFragment extends Fragment implements
 	 * @return The {@link java.lang.Long} millisecond value the passed position represents.
 	 */
 	public static long interpretRefreshSpinner(int position) {
-		return new long[]{1000, 2000, 5000}[position];
+		return new long[]{1000, 2000, 3000}[position];
 	}
 
 	@Override

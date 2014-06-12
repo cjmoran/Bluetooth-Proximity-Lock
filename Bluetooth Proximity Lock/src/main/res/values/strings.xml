@@ -28,15 +28,15 @@
 
 	<string name="refresh_interval">Refresh every:</string>
 	<string-array name="refresh_intervals">
-		<item>1 second</item>
+		<item>1 second (default)</item>
 		<item>2 seconds</item>
-		<item>5 seconds</item>
+		<item>3 seconds</item>
 	</string-array>
 
 	<string name="lock_distance">Lock Distance:</string>
 	<string-array name="lock_distances">
 		<item>Close (1&#8211;2 ft.)</item>
-		<item>Medium (4&#8211;5 ft.)</item>
+		<item>Medium (4&#8211;5 ft.) (default)</item>
 		<item>Far (8+ ft.)</item>
 		<item>Max (Lock on Bluetooth disconnect)</item>
 	</string-array>
