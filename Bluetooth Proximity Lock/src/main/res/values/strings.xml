@@ -38,7 +38,7 @@
 		<item>Close (1&#8211;2 ft.)</item>
 		<item>Medium (4&#8211;5 ft.) (default)</item>
 		<item>Far (8+ ft.)</item>
-		<item>Max (Lock on Bluetooth disconnect)</item>
+		<item>Max (Lock on device disconnect)</item>
 	</string-array>
 
 </resources>

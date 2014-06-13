@@ -5,7 +5,7 @@ import android.util.AttributeSet;
 import android.widget.Switch;
 
 /**
- * Implementation of Android's Switch which can differentiate between user and programmatic changes to onChecked state.
+ * Implementation of Android's Switch which can differentiate between user and programmatic changes to checked state.
  */
 public class BetterSwitch extends Switch {
 	private OnCheckedChangeListener listener = null;

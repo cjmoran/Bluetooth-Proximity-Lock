@@ -17,11 +17,8 @@
 package com.javadog.bluetoothproximitylock;
 
 import android.app.Service;
-import android.bluetooth.BluetoothAdapter;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.IBinder;
@@ -36,8 +33,6 @@ import com.javadog.bluetoothproximitylock.helpers.ServiceBinder;
 
 /**
  * This Service runs a background thread which periodically updates the signal strength.
- *
- * TODO: Not sure if service handles BT state changes gracefully.
  */
 public class SignalReaderService extends Service {
 	public final static String ACTION_SIGNAL_STRENGTH_UPDATE = "com.javadog.bluetoothproximitylock.UPDATE_BT_SS";
@@ -45,10 +40,9 @@ public class SignalReaderService extends Service {
 
 	private final IBinder binder = new ServiceBinder<>(this);
 	private static long refreshIntervalMs;
-	private boolean iAmRunning;
+	private static boolean iAmRunning;
 
 	private SignalStrengthLoader loader;
-	private BluetoothStateReceiver btStateReceiver;
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
@@ -59,20 +53,15 @@ public class SignalReaderService extends Service {
 		refreshIntervalMs = BluetoothFragment.interpretRefreshSpinner(
 				userPrefs.getInt(BluetoothFragment.PREF_REFRESH_INTERVAL, 1));
 
-		loader = new SignalStrengthLoader();
-		loader.execute();
-
 		//onStartCommand can be run multiple times by calls to startService
 		if(!isServiceRunning()) {
 			Log.i(MainActivity.DEBUG_TAG, "SignalReaderService started.");
-
-			//Subscribe to updates about Bluetooth state so we can kill the service if BT is disabled
-			btStateReceiver = new BluetoothStateReceiver();
-			IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-			registerReceiver(btStateReceiver, filter);
 		}
 
 		iAmRunning = true;
+
+		loader = new SignalStrengthLoader();
+		loader.execute();
 
 		//Keep the service in a "started" state even if killed for memory
 		return START_STICKY;
@@ -82,8 +71,7 @@ public class SignalReaderService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 
-		iAmRunning = false;
-		stopService();
+		tearDown();
 
 		Log.i(MainActivity.DEBUG_TAG, "SignalReaderService stopped.");
 	}
@@ -93,29 +81,22 @@ public class SignalReaderService extends Service {
 		return binder;
 	}
 
-	public boolean isServiceRunning() {
+	public static boolean isServiceRunning() {
 		return iAmRunning;
 	}
 
-	protected void stopService() {
+	private void tearDown() {
 		//Kill the AsyncTask
 		if(loader != null) {
 			loader.plzStop();
 		}
 
-		iAmRunning = false;
-
-		unregisterReceiver(btStateReceiver);
-
 		//Tell the BTFragment to unbind this service so it can be destroyed
 		sendLocalBroadcast(getApplicationContext(), ACTION_UNBIND_SERVICE, 1);
 
-		//If this was called directly, it will call stopSelf. Otherwise it was called by onDestroy, so no need.
-		if(iAmRunning) {
-			stopSelf();
-		}
+		iAmRunning = false;
 
-		Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_SHORT).show();
+		Toast.makeText(getApplicationContext(), "Bluetooth auto-lock disabled", Toast.LENGTH_LONG).show();
 	}
 
 	/**
@@ -205,22 +186,6 @@ public class SignalReaderService extends Service {
 		@Override
 		protected void onPostExecute(Void aVoid) {
 			Log.d(MainActivity.DEBUG_TAG, "BT signal strength loader stopped");
-		}
-	}
-
-	/**
-	 * Subscribes to BT status updates and kills the SignalStrengthLoader if BT is disabled.
-	 */
-	private class BluetoothStateReceiver extends BroadcastReceiver {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			if(intent.getAction().equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-				switch(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-					case BluetoothAdapter.STATE_OFF:
-						stopService();
-						break;
-				}
-			}
 		}
 	}
 }

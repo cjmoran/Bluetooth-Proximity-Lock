@@ -71,11 +71,11 @@ public class BluetoothFragment extends Fragment implements
 	protected Set<BluetoothDevice> devicesSet;
 	protected static Spinner lockDistance;
 	protected static Spinner refreshIntervalSpinner;
-	protected static long refreshInterval;    //TODO: Pretty sure a 5-second interval isn't practical; reconsider this.
+	protected static long refreshInterval;
 	protected boolean serviceBound;
 	protected static SharedPreferences userPrefs;
 	protected BluetoothStateReceiver btStateReceiver;
-	protected ServiceConnection serviceConnection;
+	private ServiceConnection serviceConnection;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -167,7 +167,9 @@ public class BluetoothFragment extends Fragment implements
 		Intent bindService = new Intent(getActivity().getApplicationContext(), SignalReaderService.class);
 
 		//Passing 0 as the flag will prevent the service from being started if it hasn't been already.
-		getActivity().bindService(bindService, serviceConnection, 0);
+		if(SignalReaderService.isServiceRunning()) {
+			getActivity().bindService(bindService, serviceConnection, 0);
+		}
 	}
 
 	/**
@@ -177,8 +179,8 @@ public class BluetoothFragment extends Fragment implements
 		if(getActivity() != null && serviceBound) {
 			getActivity().unbindService(serviceConnection);
 			serviceBound = false;
-			updateBtServiceUI();
 		}
+		updateBtServiceUI();
 	}
 
 	protected void populateBtDevices() {
@@ -284,8 +286,6 @@ public class BluetoothFragment extends Fragment implements
 
 	/**
 	 * Handles starting of the service if all necessary conditions are met.
-	 *
-	 * TODO: Dialog appears twice on startup if BT is disabled.
 	 */
 	protected void startBtService() {
 		if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
@@ -294,7 +294,7 @@ public class BluetoothFragment extends Fragment implements
 		} else {
 			Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 			startActivityForResult(intent, REQUEST_CODE_ENABLE_BT);
-			serviceToggle.setChecked(false);
+			updateBtServiceUI();
 		}
 	}
 
@@ -385,13 +385,14 @@ public class BluetoothFragment extends Fragment implements
 				final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
 				switch(state) {
 					case BluetoothAdapter.STATE_ON:
-						enableUiElement(deviceChooser);
 						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth enabled");
+						enableUiElement(deviceChooser);
 						break;
 
-					case BluetoothAdapter.STATE_OFF:
-						disableUiElement(deviceChooser);
+					case BluetoothAdapter.STATE_TURNING_OFF:
 						Log.d(MainActivity.DEBUG_TAG, "Received broadcast: Bluetooth disabled");
+						disableUiElement(deviceChooser);
+						stopBtService();
 						break;
 				}
 			}

@@ -17,9 +17,10 @@ public class ServiceBinder<T> extends Binder {
 	 * @param service A reference to the service which will be bound.
 	 */
 	public ServiceBinder(T service) {
-		weakService = new WeakReference<T>(service);
+		weakService = new WeakReference<>(service);
 	}
 
+	@SuppressWarnings("unused")
 	public T getService() {
 		return weakService.get();
 	}
