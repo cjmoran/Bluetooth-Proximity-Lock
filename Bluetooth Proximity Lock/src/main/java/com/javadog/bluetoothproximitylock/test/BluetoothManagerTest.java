@@ -49,6 +49,8 @@ public class BluetoothManagerTest extends TestCase {
 			assertEquals("BTManager should return the selected device",
 					testDevice.getAddress(),
 					BluetoothManager.getPairedDevice().getAddress());
+
+			//Screen needs to be on for this test
 			assertEquals("BTManager should return the selected device (selected by address)",
 					testDevice.getAddress(),
 					BluetoothManager.getPairedDevice(testDevice.getAddress()).getAddress());

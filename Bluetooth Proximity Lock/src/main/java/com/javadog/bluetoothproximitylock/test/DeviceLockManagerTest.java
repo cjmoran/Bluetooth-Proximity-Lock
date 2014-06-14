@@ -27,5 +27,10 @@ public class DeviceLockManagerTest extends TestCase {
 		super.setUp();
 	}
 
-	//TODO: Write tests for this. Class isn't near enough to complete at this point.
+	/**
+	 * Tests {@link com.javadog.bluetoothproximitylock.helpers.DeviceLockManager#handleDeviceLock(int)}.
+	 */
+	public void testHandleDeviceLock() {
+		//TODO: Write this test once user is able to choose distance tolerance.
+	}
 }

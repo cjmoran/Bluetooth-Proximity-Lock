@@ -41,12 +41,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 
-import com.javadog.bluetoothproximitylock.helpers.BetterSwitch;
+import com.javadog.bluetoothproximitylock.helpers.BetterCompoundButton;
 import com.javadog.bluetoothproximitylock.helpers.BluetoothManager;
 import com.javadog.bluetoothproximitylock.helpers.DeviceLockManager;
 
@@ -60,16 +61,18 @@ public class BluetoothFragment extends Fragment implements
 		CompoundButton.OnCheckedChangeListener, AdapterView.OnItemSelectedListener {
 	public final static String PREF_BT_DEVICE_ADDRESS = "btDeviceAddress";
 	public final static String PREF_LOCK_DISTANCE = "lockDistance";
+	public final static String PREF_INSTANT_LOCK = "instantLock";
 	public final static String PREF_REFRESH_INTERVAL = "refreshInterval";
 	final static int REQUEST_CODE_ENABLE_ADMIN = 984;
 	final static int REQUEST_CODE_ENABLE_BT = 873;
 
 	protected static LocalBroadcastReceiver ssReceiver;
-	protected static BetterSwitch serviceToggle;
+	protected static BetterCompoundButton<Switch> serviceToggle;
 	protected static TextView signalStrengthView;
 	protected static Spinner deviceChooser;
 	protected Set<BluetoothDevice> devicesSet;
 	protected static Spinner lockDistance;
+	protected static BetterCompoundButton<CheckBox> lockInstantly;
 	protected static Spinner refreshIntervalSpinner;
 	protected static long refreshInterval;
 	protected boolean serviceBound;
@@ -100,11 +103,13 @@ public class BluetoothFragment extends Fragment implements
 		userPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity().getApplicationContext());
 
 		//Get fresh references to our views
-		serviceToggle = new BetterSwitch(getActivity(),
+		serviceToggle = new BetterCompoundButton<>(getActivity(),
 				(Switch) getView().findViewById(R.id.button_bt_service_start_stop));
 		signalStrengthView = (TextView) getView().findViewById(R.id.bt_signal_strength);
 		deviceChooser = (Spinner) getView().findViewById(R.id.bt_device_chooser);
-		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances); //TODO: This doesn't actually do anything yet.
+		lockDistance = (Spinner) getView().findViewById(R.id.bt_lock_distances); //TODO: This doesn't do anything yet.
+		lockInstantly = new BetterCompoundButton<>(getActivity(),
+				(CheckBox) getView().findViewById(R.id.bt_lock_instantly));
 		refreshIntervalSpinner = (Spinner) getView().findViewById(R.id.bt_refresh_interval);
 
 		//Get a reference to the local broadcast manager, and specify which intent actions we want to listen for
@@ -213,6 +218,7 @@ public class BluetoothFragment extends Fragment implements
 			}
 		}
 		lockDistance.setSelection(userPrefs.getInt(PREF_LOCK_DISTANCE, 1));
+		lockInstantly.silentlySetChecked(userPrefs.getBoolean(PREF_INSTANT_LOCK, false));
 		refreshIntervalSpinner.setSelection(userPrefs.getInt(PREF_REFRESH_INTERVAL, 1));
 
 		//Update internal copy of refresh interval based on the value in the spinner
@@ -234,8 +240,9 @@ public class BluetoothFragment extends Fragment implements
 	}
 
 	private void setupClickListeners() {
-		//Service toggle switch
+		//Toggle switches
 		serviceToggle.setOnCheckedChangeListener(this);
+		lockInstantly.setOnCheckedChangeListener(this);
 
 		Spinner[] spinners = {deviceChooser, lockDistance, refreshIntervalSpinner};
 		for(Spinner spinner : spinners) {
@@ -368,11 +375,17 @@ public class BluetoothFragment extends Fragment implements
 
 	@Override
 	public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+		SharedPreferences.Editor prefsEditor = userPrefs.edit();
 		switch(compoundButton.getId()) {
 			case R.id.button_bt_service_start_stop:
 				toggleBtService(isChecked);
 				break;
+			case R.id.bt_lock_instantly:
+				//Save preference
+				prefsEditor.putBoolean(PREF_INSTANT_LOCK, isChecked);
+				break;
 		}
+		prefsEditor.apply();
 	}
 
 	/**

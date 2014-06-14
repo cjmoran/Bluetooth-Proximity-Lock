@@ -160,7 +160,7 @@ public class SignalReaderService extends Service {
 					Log.d(MainActivity.DEBUG_TAG, "Refresh interval: " + refreshIntervalMs);
 
 					//Decide whether the device should be locked/unlocked
-					deviceLockManager.handleDeviceLock(signalStrength);
+					deviceLockManager.handleDeviceLock(getApplicationContext(), signalStrength);
 				}
 
 				//Sleep this thread for the provided time

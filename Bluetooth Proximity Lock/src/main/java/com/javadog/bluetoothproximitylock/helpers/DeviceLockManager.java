@@ -20,13 +20,16 @@ import android.app.admin.DeviceAdminReceiver;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
+import com.javadog.bluetoothproximitylock.BluetoothFragment;
 import com.javadog.bluetoothproximitylock.MainActivity;
-import com.javadog.bluetoothproximitylock.helpers.CircularQueue;
 
 /**
  * Handles locking/unlocking of the device when conditions are met.
+ *
+ * TODO: Screen turning off/on doesn't seem to unbind service; breaks stop button.
  */
 public class DeviceLockManager extends DeviceAdminReceiver {
 	//TODO: temporary constants that work for my devices. Add a calibration screen.
@@ -57,7 +60,7 @@ public class DeviceLockManager extends DeviceAdminReceiver {
 	 *
 	 * @param signalStrength The current signal strength as measured by SignalReaderService.
 	 */
-	public void handleDeviceLock(int signalStrength) {
+	public void handleDeviceLock(Context context, int signalStrength) {
 		//TODO: Allow the user to specify distance tolerance. For now I will assume "medium" distance = lock.
 
 		//Add the latest sample to our queue of 5 samples
@@ -73,6 +76,14 @@ public class DeviceLockManager extends DeviceAdminReceiver {
 			String newPassword = lockEnabled ? "1234" : "";
 
 			boolean lockSuccess = dpm.resetPassword(newPassword, 0);
+
+			//Lock immediately if the user specified that preference
+			if(PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+					BluetoothFragment.PREF_INSTANT_LOCK, false)
+					&& !newPassword.equals("")) {
+				Log.d(MainActivity.DEBUG_TAG, "Instant-locking device");
+				dpm.lockNow();
+			}
 
 			Log.d(MainActivity.DEBUG_TAG, "Device lock enabled set to: " + lockEnabled);
 			Log.d(MainActivity.DEBUG_TAG, "Lock change successful: " + lockSuccess);
