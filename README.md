@@ -10,4 +10,4 @@ Planned features:
 - [ ] Lock device when bluetooth peripheral leaves user-defined radius (approximate).
 - [ ] Keep device unlocked when it is connected to a user-specified "trusted" WiFi network.
 - [ ] Save battery by only running the service right as the device screen is woken up.
-- [ ] If the above is disabled, user can enable immediate locking when BT device leaves defined range.
+- [x] If the above is disabled, user can enable immediate locking when BT device leaves defined range.
