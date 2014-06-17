@@ -5,7 +5,7 @@ This app runs a service in the background which monitors the approximate physica
 
 This app will be published on Google Play for a low price when it reaches a more complete state, but it will contain no license-checking. It will also remain open-source (under the Apache license) and freely-available for those who wish to compile it for themselves; all I ask is that users please not distribute compiled packages.
 
-Planned features:
+Planned features: 
 
 - [ ] Lock device when bluetooth peripheral leaves user-defined radius (approximate).
 - [ ] Keep device unlocked when it is connected to a user-specified "trusted" WiFi network.
